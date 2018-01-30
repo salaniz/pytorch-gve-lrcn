@@ -1,5 +1,7 @@
 # Adapted from
 # https://github.com/yunjey/pytorch-tutorial/tree/master/tutorials/03-advanced/image_captioning
+import pickle
+
 class Vocabulary():
     """Simple vocabulary wrapper."""
     def __init__(self, unknown_token='<UNK>', start_token='<SOS>',
@@ -38,3 +40,16 @@ class Vocabulary():
 
     def __len__(self):
         return len(self.word2idx)
+
+    @classmethod
+    def load(cls, path):
+        with open(path, 'rb') as f:
+            vocab = pickle.load(f)
+        assert isinstance(vocab, cls)
+        return vocab
+
+    @classmethod
+    def save(cls, vocab, path):
+        assert isinstance(vocab, cls)
+        with open(path, 'wb') as f:
+            pickle.dump(vocab, f)

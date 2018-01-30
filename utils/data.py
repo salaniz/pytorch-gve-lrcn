@@ -17,26 +17,21 @@ import nltk
 from .vocabulary import Vocabulary
 
 class DataPreparation:
-    def __init__(self, data_path='./data', batch_size=64):
+    def __init__(self, data_path='./data', batch_size=64, num_workers=4):
         self.data_path = data_path
         self.batch_size = batch_size
+        self.num_workers = num_workers
 
-    def get_coco_data(self):
-        train_path = os.path.join(self.data_path, 'train2014')
-        val_path = os.path.join(self.data_path, 'val2014')
-        ann_train_path = os.path.join(self.data_path, 'annotations/captions_train2014.json')
-        ann_val_path = os.path.join(self.data_path, 'annotations/captions_val2014.json')
+    def get_coco_data(self, vocab=None):
+        train_path = os.path.join(self.data_path, CocoDataset.image_train_path)
+        val_path = os.path.join(self.data_path, CocoDataset.image_val_path)
+        cap_train_path = os.path.join(self.data_path,
+                                      CocoDataset.caption_train_path)
+        cap_val_path = os.path.join(self.data_path,
+                                    CocoDataset.caption_val_path)
 
-        vocab_path = os.path.join(self.data_path, 'coco_vocab.pkl')
-        if os.path.exists(vocab_path):
-            with open(vocab_path, 'rb') as f:
-                vocab = pickle.load(f)
-        else:
-            #TODO: make threshold parameter
-            vocab = CocoDataset.build_vocab(ann_train_path, 4)
-            with open(vocab_path, 'wb') as f:
-                pickle.dump(vocab, f)
-            print("Saved the vocabulary wrapper to '%s'" %vocab_path)
+        if vocab is None:
+            vocab = CocoDataset.get_vocabulary(self.data_path)
 
         transform = transforms.Compose([transforms.Resize(256),
                                         transforms.RandomCrop(224),
@@ -46,12 +41,12 @@ class DataPreparation:
                                                              std=(0.229, 0.224, 0.225))])
 
         coco_caption_train = CocoDataset(root=train_path,
-                                         json=ann_train_path,
+                                         json=cap_train_path,
                                          vocab=vocab,
                                          transform=transform)
 
         coco_caption_val = CocoDataset(root=val_path,
-                                         json=ann_val_path,
+                                         json=cap_val_path,
                                          vocab=vocab,
                                          transform=transform)
 
@@ -59,13 +54,13 @@ class DataPreparation:
         train_loader = torch.utils.data.DataLoader(dataset=coco_caption_train,
                                                            batch_size=self.batch_size,
                                                            shuffle=True,
-                                                           num_workers=4,
+                                                           num_workers=self.num_workers,
                                                            collate_fn=CocoDataset.collate_fn)
 
         val_loader = torch.utils.data.DataLoader(dataset=coco_caption_val,
                                                          batch_size=self.batch_size,
                                                          shuffle=False,
-                                                         num_workers=4,
+                                                         num_workers=self.num_workers,
                                                          collate_fn=CocoDataset.collate_fn)
 
 
@@ -77,6 +72,13 @@ class DataPreparation:
 # https://github.com/yunjey/pytorch-tutorial/tree/master/tutorials/03-advanced/image_captioning
 class CocoDataset(data.Dataset):
     """COCO Custom Dataset compatible with torch.utils.data.DataLoader."""
+
+    image_train_path = 'train2014'
+    image_val_path = 'val2014'
+    caption_train_path = 'annotations/captions_train2014.json'
+    caption_val_path = 'annotations/captions_val2014.json'
+    vocab_file_name = 'coco_vocab.pkl'
+
     def __init__(self, root, json, vocab, transform=None):
         """Set the path for images, captions and vocabulary wrapper.
 
@@ -91,6 +93,7 @@ class CocoDataset(data.Dataset):
         self.ids = list(self.coco.anns.keys())
         self.vocab = vocab
         self.transform = transform
+
 
     def __getitem__(self, index):
         """Returns one data pair (image and caption)."""
@@ -175,6 +178,21 @@ class CocoDataset(data.Dataset):
         print("Total vocabulary size: %d" %len(vocab))
         return vocab
 
+
+    @staticmethod
+    def get_vocabulary(data_path, threshold=4):
+        # Load or construct vocabulary
+        print(data_path)
+        vocab_path = os.path.join(data_path, CocoDataset.vocab_file_name)
+        print(data_path)
+        if os.path.exists(vocab_path):
+            vocab = Vocabulary.load(vocab_path)
+        else:
+            path = os.path.join(data_path, CocoDataset.caption_train_path)
+            vocab = CocoDataset.build_vocab(path, threshold)
+            Vocabulary.save(vocab, vocab_path)
+            print("Saved the vocabulary to '%s'" %vocab_path)
+        return vocab
 
 
 def get_loader(root, json, vocab, transform, batch_size, shuffle, num_workers):
