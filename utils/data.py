@@ -15,6 +15,7 @@ import nltk
 
 # Local packages
 from .vocabulary import Vocabulary
+from .tokenizer.ptbtokenizer import PTBTokenizer
 
 class DataPreparation:
     def __init__(self, data_path='./data', batch_size=64, num_workers=4):
@@ -22,7 +23,7 @@ class DataPreparation:
         self.batch_size = batch_size
         self.num_workers = num_workers
 
-    def get_coco_data(self, vocab=None):
+    def get_coco_data(self, vocab=None, tokens=None):
         train_path = os.path.join(self.data_path, CocoDataset.image_train_path)
         val_path = os.path.join(self.data_path, CocoDataset.image_val_path)
         cap_train_path = os.path.join(self.data_path,
@@ -30,8 +31,10 @@ class DataPreparation:
         cap_val_path = os.path.join(self.data_path,
                                     CocoDataset.caption_val_path)
 
+        if tokens is None:
+            tokens = CocoDataset.get_tokenized_captions(self.data_path)
         if vocab is None:
-            vocab = CocoDataset.get_vocabulary(self.data_path)
+            vocab = CocoDataset.get_vocabulary(self.data_path, tokens)
 
         transform = transforms.Compose([transforms.Resize(256),
                                         transforms.RandomCrop(224),
@@ -43,11 +46,13 @@ class DataPreparation:
         coco_caption_train = CocoDataset(root=train_path,
                                          json=cap_train_path,
                                          vocab=vocab,
+                                         tokenized_captions=tokens,
                                          transform=transform)
 
         coco_caption_val = CocoDataset(root=val_path,
                                          json=cap_val_path,
                                          vocab=vocab,
+                                         tokenized_captions=tokens,
                                          transform=transform)
 
 
@@ -78,8 +83,13 @@ class CocoDataset(data.Dataset):
     caption_train_path = 'annotations/captions_train2014.json'
     caption_val_path = 'annotations/captions_val2014.json'
     vocab_file_name = 'coco_vocab.pkl'
+    tokens_file_name = 'coco_tokens.pkl'
 
-    def __init__(self, root, json, vocab, transform=None):
+    # punctuations to be removed from the sentences
+    PUNCTUATIONS = ["''", "'", "``", "`", "(", ")", "{", "}",
+                    ".", "?", "!", ",", ":", "-", "--", "...", ";"]
+
+    def __init__(self, root, json, vocab, tokenized_captions, transform=None):
         """Set the path for images, captions and vocabulary wrapper.
 
         Args:
@@ -92,6 +102,7 @@ class CocoDataset(data.Dataset):
         self.coco = COCO(json)
         self.ids = list(self.coco.anns.keys())
         self.vocab = vocab
+        self.tokens = tokenized_captions
         self.transform = transform
 
 
@@ -100,7 +111,8 @@ class CocoDataset(data.Dataset):
         coco = self.coco
         vocab = self.vocab
         ann_id = self.ids[index]
-        caption = coco.anns[ann_id]['caption']
+        #caption = coco.anns[ann_id]['caption']
+        tokens = self.tokens[ann_id]
         img_id = coco.anns[ann_id]['image_id']
         path = coco.loadImgs(img_id)[0]['file_name']
 
@@ -108,8 +120,10 @@ class CocoDataset(data.Dataset):
         if self.transform is not None:
             image = self.transform(image)
 
+        """
         # Convert caption (string) to word ids.
-        tokens = nltk.tokenize.word_tokenize(str(caption).lower())
+        tokens = CocoDataset.tokenize(caption)
+        """
         caption = []
         caption.append(vocab(vocab.start_token))
         caption.extend([vocab(token) for token in tokens])
@@ -150,16 +164,50 @@ class CocoDataset(data.Dataset):
             targets[i, :end] = cap[:end]
         return images, targets, lengths
 
+    @staticmethod
+    def tokenize(caption):
+        """ [word for word in
+                nltk.tokenize.word_tokenize(str(caption).rstrip('.').lower()) if word not
+                in CocoDataset.PUNCTUATIONS]
+        """
+        t = PTBTokenizer()
+        return t.tokenize_caption(caption)
 
     @staticmethod
-    def build_vocab(json, threshold):
+    def build_tokenized_captions(json):
+        coco = COCO(json)
+        t = PTBTokenizer()
+        tokenized_captions = t.tokenize(coco.anns)
+        return tokenized_captions
+
+    @staticmethod
+    def get_tokenized_captions(data_path):
+        # Load or construct tokenized captions
+        tokens_path = os.path.join(data_path, CocoDataset.tokens_file_name)
+        if os.path.exists(tokens_path):
+            with open(tokens_path, 'rb') as f:
+                tokens = pickle.load(f)
+        else:
+            path = os.path.join(data_path, CocoDataset.caption_train_path)
+            tokens = CocoDataset.build_tokenized_captions(path)
+            with open(tokens_path, 'wb') as f:
+                pickle.dump(tokens, f, protocol=pickle.HIGHEST_PROTOCOL)
+            print("Saved the tokenized captions to '%s'" %tokens_path)
+        return tokens
+
+
+    @staticmethod
+    def build_vocab(json, tokenized_captions, threshold):
         """Build a simple vocabulary wrapper."""
         coco = COCO(json)
         counter = Counter()
         ids = coco.anns.keys()
         for i, id in enumerate(ids):
+            """
             caption = str(coco.anns[id]['caption'])
-            tokens = nltk.tokenize.word_tokenize(caption.lower())
+            tokens = CocoDataset.tokenize(caption)
+            """
+            tokens = tokenized_captions[id]
             counter.update(tokens)
 
             if i % 1000 == 0:
@@ -180,16 +228,14 @@ class CocoDataset(data.Dataset):
 
 
     @staticmethod
-    def get_vocabulary(data_path, threshold=4):
+    def get_vocabulary(data_path, tokenized_captions, threshold=1):
         # Load or construct vocabulary
-        print(data_path)
         vocab_path = os.path.join(data_path, CocoDataset.vocab_file_name)
-        print(data_path)
         if os.path.exists(vocab_path):
             vocab = Vocabulary.load(vocab_path)
         else:
             path = os.path.join(data_path, CocoDataset.caption_train_path)
-            vocab = CocoDataset.build_vocab(path, threshold)
+            vocab = CocoDataset.build_vocab(path, tokenized_captions, threshold)
             Vocabulary.save(vocab, vocab_path)
             print("Saved the vocabulary to '%s'" %vocab_path)
         return vocab
