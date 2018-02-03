@@ -18,7 +18,7 @@ from .vocabulary import Vocabulary
 from .tokenizer.ptbtokenizer import PTBTokenizer
 
 class DataPreparation:
-    def __init__(self, data_path='./data', batch_size=64, num_workers=4):
+    def __init__(self, data_path='./data', batch_size=128, num_workers=4):
         self.data_path = data_path
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -157,16 +157,19 @@ class CocoDataset(data.Dataset):
         images = torch.stack(images, 0)
 
         # Merge captions (from tuple of 1D tensor to 2D tensor).
-        lengths = [len(cap) for cap in captions]
-        targets = torch.zeros(len(captions), max(lengths)).long()
+        lengths = [len(cap)-1 for cap in captions]
+        word_inputs = torch.zeros(len(captions), max(lengths)).long()
+        word_targets = torch.zeros(len(captions), max(lengths)).long()
         for i, cap in enumerate(captions):
             end = lengths[i]
-            targets[i, :end] = cap[:end]
-        return images, targets, lengths
+            word_inputs[i, :end] = cap[:-1]
+            word_targets[i, :end] = cap[1:]
+        return images, word_inputs, word_targets, lengths
 
     @staticmethod
     def tokenize(caption):
-        """ [word for word in
+        """
+        return [word for word in
                 nltk.tokenize.word_tokenize(str(caption).rstrip('.').lower()) if word not
                 in CocoDataset.PUNCTUATIONS]
         """

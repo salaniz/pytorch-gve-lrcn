@@ -69,7 +69,7 @@ class PTBTokenizer:
         #sentences = [item['caption'].replace('\n', ' ') for item in captions_for_image]
         #sentences = '\n'.join(sentences)
         ids = anns.keys()
-        sentences = [anns[i]['caption'] for i in ids]
+        sentences = [anns[i]['caption'].replace('\n', ' ') for i in ids]
         sentences = '\n'.join(sentences)
 
 

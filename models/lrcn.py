@@ -43,11 +43,11 @@ class LRCN(nn.Module):
         image_features = self.vision_model(image_inputs)
         image_features = image_features.unsqueeze(1)
         embeddings = self.word_embed(captions)
+        image_features = image_features.expand(-1, embeddings.size(1), -1)
         #print(image_features.shape)
         #print(embeddings.shape)
         if not self.is_factored:
             embeddings = torch.cat((image_features, embeddings), 2)
-            image_features = image_features.expand(-1, embeddings.size(1), -1)
             packed = pack_padded_sequence(embeddings, lengths, batch_first=True)
             hiddens, _ = self.lstm1(packed)
             hiddens, _ = self.lstm2(hiddens)
@@ -55,7 +55,6 @@ class LRCN(nn.Module):
             packed = pack_padded_sequence(embeddings, lengths, batch_first=True)
             hiddens, _ = self.lstm1(packed)
             unpacked_hiddens, new_lengths = pad_packed_sequence(hiddens, batch_first=True)
-            image_features = image_features.expand(-1, unpacked_hiddens.size(1), -1)
             unpacked_hiddens = torch.cat((image_features, unpacked_hiddens), 2)
             packed_hiddens = pack_padded_sequence(unpacked_hiddens, lengths,
                     batch_first=True)
@@ -66,11 +65,43 @@ class LRCN(nn.Module):
         outputs = self.linear(hiddens[0])
         return outputs
 
-    def sample(self, features, states=None):
+    def custom_state_dict(self):
+        state_dict = self.state_dict()
+        for key in self.vision_model.state_dict().keys():
+            del state_dict['vision_model.{}'.format(key)]
+        return state_dict
+
+    def sample(self, image_inputs, start_word, states=(None,None), max_sampling_length=20):
         """Samples captions for given image features (Greedy search)."""
         sampled_ids = []
-        inputs = features.unsqueeze(1)
-        for i in range(20):                                      # maximum sampling length
+        image_features = self.vision_model(image_inputs)
+        image_features = image_features.unsqueeze(1)
+        embedded_word = self.word_embed(start_word)
+        embedded_word = embedded_word.expand(image_features.size(0), -1, -1)
+        lstm1_states, lstm2_states = states
+
+        for i in range(max_sampling_length):                                      # maximum sampling length
+            if not self.is_factored:
+                lstm1_input = torch.cat((image_features, embedded_word), 2)
+                lstm1_output, lstm1_states = self.lstm1(lstm1_input, lstm1_states)
+                lstm2_output, lstm2_states = self.lstm2(lstm1_output, lstm2_states)
+            else:
+                lstm1_output, lstm1_states = self.lstm1(embedded_word, lstm1_states)
+                lstm1_output = torch.cat((image_features, lstm1_output), 2)
+                lstm2_output, lstm2_states = self.lstm2(lstm1_output, lstm2_states)
+
+
+            outputs = self.linear(lstm2_output.squeeze(1))
+            predicted = outputs.max(1)[1]
+            sampled_ids.append(predicted.unsqueeze(1))
+            embedded_word = self.word_embed(predicted)
+            embedded_word = embedded_word.unsqueeze(1)                         # (batch_size, 1, word_embed_size)
+
+        sampled_ids = torch.cat(sampled_ids, 1)                  # (batch_size, 20)
+        return sampled_ids.squeeze()
+
+        """
+        for i in range(max_sampling_length):                                      # maximum sampling length
             hiddens, states = self.lstm(inputs, states)          # (batch_size, 1, hidden_size),
             outputs = self.linear(hiddens.squeeze(1))            # (batch_size, vocab_size)
             predicted = outputs.max(1)[1]
@@ -79,3 +110,4 @@ class LRCN(nn.Module):
             inputs = inputs.unsqueeze(1)                         # (batch_size, 1, word_embed_size)
         sampled_ids = torch.cat(sampled_ids, 1)                  # (batch_size, 20)
         return sampled_ids.squeeze()
+        """
