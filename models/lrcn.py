@@ -7,10 +7,11 @@ from .pretrained_models import PretrainedModel
 
 class LRCN(nn.Module):
     def __init__(self, pretrained_model_name, word_embed_size, hidden_size,
-                 vocab_size, is_factored=True):
+                 vocab_size, layers_to_truncate=1, is_factored=True):
         """Set the hyper-parameters and build the layers."""
         super(LRCN, self).__init__()
-        self.vision_model = PretrainedModel(pretrained_model_name)
+        self.vision_model = PretrainedModel(pretrained_model_name,
+                layers_to_truncate=layers_to_truncate)
         self.word_embed = nn.Embedding(vocab_size, word_embed_size, padding_idx=0)
         self.is_factored = is_factored
 
@@ -30,6 +31,8 @@ class LRCN(nn.Module):
 
         self.input_size = (self.vision_model.input_size, vocab_size)
         self.output_size = vocab_size
+
+        print(self)
 
     def init_weights(self):
         """Initialize weights."""
