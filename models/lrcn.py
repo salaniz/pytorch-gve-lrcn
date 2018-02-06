@@ -65,13 +65,25 @@ class LRCN(nn.Module):
         outputs = self.linear(hiddens[0])
         return outputs
 
+    """
+    def update_state_dict(self):
+        vision_model_dict = self.vision_model.state_dict()
+        current_model_dict = self.state_dict()
+
+        # Remove parameters from pretrained model from state dict
+        updated_state_dict = {k: v for k, v in current_model_dict.items() if k
+                not in vision_model_dict}
+        current_model_dict.update(updated_state_dict)
+    """
+
     def custom_state_dict(self):
         state_dict = self.state_dict()
         for key in self.vision_model.state_dict().keys():
             del state_dict['vision_model.{}'.format(key)]
         return state_dict
 
-    def sample(self, image_inputs, start_word, states=(None,None), max_sampling_length=20):
+    def sample(self, image_inputs, start_word, end_word, states=(None,None),
+            max_sampling_length=50):
         """Samples captions for given image features (Greedy search)."""
         sampled_ids = []
         image_features = self.vision_model(image_inputs)
@@ -80,7 +92,11 @@ class LRCN(nn.Module):
         embedded_word = embedded_word.expand(image_features.size(0), -1, -1)
         lstm1_states, lstm2_states = states
 
-        for i in range(max_sampling_length):                                      # maximum sampling length
+        end_word = end_word.squeeze().expand(image_features.size(0))
+        reached_end = torch.zeros_like(end_word).byte()
+
+        i = 0
+        while not reached_end.all() and i < max_sampling_length:
             if not self.is_factored:
                 lstm1_input = torch.cat((image_features, embedded_word), 2)
                 lstm1_output, lstm1_states = self.lstm1(lstm1_input, lstm1_states)
@@ -93,9 +109,12 @@ class LRCN(nn.Module):
 
             outputs = self.linear(lstm2_output.squeeze(1))
             predicted = outputs.max(1)[1]
+            reached_end = reached_end | predicted.eq(end_word)
             sampled_ids.append(predicted.unsqueeze(1))
             embedded_word = self.word_embed(predicted)
             embedded_word = embedded_word.unsqueeze(1)                         # (batch_size, 1, word_embed_size)
+
+            i += 1
 
         sampled_ids = torch.cat(sampled_ids, 1)                  # (batch_size, 20)
         return sampled_ids.squeeze()
