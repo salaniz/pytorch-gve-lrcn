@@ -93,6 +93,7 @@ class PTBTokenizer:
         # remove temp file
         os.remove(tmp_file.name)
 
+        assert len(list(ids)) == len(lines)
         # ======================================================
         # create dictionary for tokenized captions
         # ======================================================

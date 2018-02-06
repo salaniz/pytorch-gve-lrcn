@@ -1,6 +1,7 @@
 # Python packages
 import os
 from collections import Counter
+from enum import Enum
 import pickle
 from PIL import Image
 #from pathlib import Path
@@ -10,6 +11,7 @@ import torch
 import torch.utils.data as data
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
+import numpy as np
 from pycocotools.coco import COCO
 import nltk
 
@@ -23,7 +25,7 @@ class DataPreparation:
         self.batch_size = batch_size
         self.num_workers = num_workers
 
-    def get_coco_data(self, vocab=None, tokens=None):
+    def get_coco_data(self, vocab=None, tokens_train=None, tokens_val=None):
         train_path = os.path.join(self.data_path, CocoDataset.image_train_path)
         val_path = os.path.join(self.data_path, CocoDataset.image_val_path)
         cap_train_path = os.path.join(self.data_path,
@@ -31,14 +33,22 @@ class DataPreparation:
         cap_val_path = os.path.join(self.data_path,
                                     CocoDataset.caption_val_path)
 
-        if tokens is None:
-            tokens = CocoDataset.get_tokenized_captions(self.data_path)
+        if tokens_train is None:
+            tokens_train = CocoDataset.get_tokenized_captions(self.data_path, True)
+        if tokens_val is None:
+            tokens_val = CocoDataset.get_tokenized_captions(self.data_path, False)
         if vocab is None:
-            vocab = CocoDataset.get_vocabulary(self.data_path, tokens)
+            vocab = CocoDataset.get_vocabulary(self.data_path, tokens_train)
 
-        transform = transforms.Compose([transforms.Resize(256),
+        transform_train = transforms.Compose([transforms.Resize(256),
                                         transforms.RandomCrop(224),
                                         transforms.RandomHorizontalFlip(),
+                                        transforms.ToTensor(),
+                                        transforms.Normalize(mean=(0.485, 0.456, 0.406),
+                                                             std=(0.229, 0.224, 0.225))])
+
+        transform_val = transforms.Compose([transforms.Resize(224),
+                                        transforms.CenterCrop(224),
                                         transforms.ToTensor(),
                                         transforms.Normalize(mean=(0.485, 0.456, 0.406),
                                                              std=(0.229, 0.224, 0.225))])
@@ -46,14 +56,16 @@ class DataPreparation:
         coco_caption_train = CocoDataset(root=train_path,
                                          json=cap_train_path,
                                          vocab=vocab,
-                                         tokenized_captions=tokens,
-                                         transform=transform)
+                                         tokenized_captions=tokens_train,
+                                         ids_based_on=CocoDataset.ID_BASE.CAPTIONS,
+                                         transform=transform_train)
 
         coco_caption_val = CocoDataset(root=val_path,
                                          json=cap_val_path,
                                          vocab=vocab,
-                                         tokenized_captions=tokens,
-                                         transform=transform)
+                                         tokenized_captions=tokens_val,
+                                         ids_based_on=CocoDataset.ID_BASE.IMAGES,
+                                         transform=transform_val)
 
 
         train_loader = torch.utils.data.DataLoader(dataset=coco_caption_train,
@@ -83,13 +95,20 @@ class CocoDataset(data.Dataset):
     caption_train_path = 'annotations/captions_train2014.json'
     caption_val_path = 'annotations/captions_val2014.json'
     vocab_file_name = 'coco_vocab.pkl'
-    tokens_file_name = 'coco_tokens.pkl'
+    tokens_train_file_name = 'coco_tokens_train.pkl'
+    tokens_val_file_name = 'coco_tokens_val.pkl'
 
     # punctuations to be removed from the sentences
     PUNCTUATIONS = ["''", "'", "``", "`", "(", ")", "{", "}",
                     ".", "?", "!", ",", ":", "-", "--", "...", ";"]
 
-    def __init__(self, root, json, vocab, tokenized_captions, transform=None):
+    class ID_BASE(Enum):
+        CAPTIONS = 0
+        IMAGES = 1
+
+
+    def __init__(self, root, json, vocab, tokenized_captions, transform=None,
+            ids_based_on=None):
         """Set the path for images, captions and vocabulary wrapper.
 
         Args:
@@ -98,9 +117,20 @@ class CocoDataset(data.Dataset):
             vocab: vocabulary wrapper.
             transform: image transformer.
         """
+
+        if ids_based_on is None:
+            ids_based_on = self.ID_BASE.CAPTIONS
+        assert isinstance(ids_based_on, self.ID_BASE)
+        self.ids_based_on = ids_based_on
+
         self.root = root
         self.coco = COCO(json)
-        self.ids = list(self.coco.anns.keys())
+        if ids_based_on == self.ID_BASE.CAPTIONS:
+            self.ids = list(self.coco.anns.keys())
+        elif ids_based_on == self.ID_BASE.IMAGES:
+            self.ids = list(self.coco.imgs.keys())
+        else:
+            raise ValueError("Chosen base for COCO IDs is not implemented")
         self.vocab = vocab
         self.tokens = tokenized_captions
         self.transform = transform
@@ -110,10 +140,19 @@ class CocoDataset(data.Dataset):
         """Returns one data pair (image and caption)."""
         coco = self.coco
         vocab = self.vocab
-        ann_id = self.ids[index]
+        base_id = self.ids[index]
         #caption = coco.anns[ann_id]['caption']
+
+        if self.ids_based_on == self.ID_BASE.CAPTIONS:
+            ann_id = base_id
+            img_id = coco.anns[ann_id]['image_id']
+        elif self.ids_based_on == self.ID_BASE.IMAGES:
+            img_id = base_id
+            img_anns = coco.imgToAnns[img_id]
+            rand_idx = np.random.randint(len(img_anns))
+            ann_id = img_anns[rand_idx]['id']
+
         tokens = self.tokens[ann_id]
-        img_id = coco.anns[ann_id]['image_id']
         path = coco.loadImgs(img_id)[0]['file_name']
 
         image = Image.open(os.path.join(self.root, path)).convert('RGB')
@@ -129,7 +168,7 @@ class CocoDataset(data.Dataset):
         caption.extend([vocab(token) for token in tokens])
         caption.append(vocab(vocab.end_token))
         target = torch.Tensor(caption)
-        return image, target
+        return image, target, base_id
 
     def __len__(self):
         return len(self.ids)
@@ -151,7 +190,7 @@ class CocoDataset(data.Dataset):
         """
         # Sort a data list by caption length (descending order).
         data.sort(key=lambda x: len(x[1]), reverse=True)
-        images, captions = zip(*data)
+        images, captions, ids = zip(*data)
 
         # Merge images (from tuple of 3D tensor to 4D tensor).
         images = torch.stack(images, 0)
@@ -164,7 +203,8 @@ class CocoDataset(data.Dataset):
             end = lengths[i]
             word_inputs[i, :end] = cap[:-1]
             word_targets[i, :end] = cap[1:]
-        return images, word_inputs, word_targets, lengths
+
+        return images, word_inputs, word_targets, lengths, ids
 
     @staticmethod
     def tokenize(caption):
@@ -184,14 +224,22 @@ class CocoDataset(data.Dataset):
         return tokenized_captions
 
     @staticmethod
-    def get_tokenized_captions(data_path):
+    def get_tokenized_captions(data_path, train=True):
         # Load or construct tokenized captions
-        tokens_path = os.path.join(data_path, CocoDataset.tokens_file_name)
+        if train:
+            tokens_name = CocoDataset.tokens_train_file_name
+        else:
+            tokens_name = CocoDataset.tokens_val_file_name
+        tokens_path = os.path.join(data_path, tokens_name)
         if os.path.exists(tokens_path):
             with open(tokens_path, 'rb') as f:
                 tokens = pickle.load(f)
         else:
-            path = os.path.join(data_path, CocoDataset.caption_train_path)
+            if train:
+                caption_path = CocoDataset.caption_train_path
+            else:
+                caption_path = CocoDataset.caption_val_path
+            path = os.path.join(data_path, caption_path)
             tokens = CocoDataset.build_tokenized_captions(path)
             with open(tokens_path, 'wb') as f:
                 pickle.dump(tokens, f, protocol=pickle.HIGHEST_PROTOCOL)
