@@ -1,93 +1,22 @@
-# Python packages
 import os
 from collections import Counter
 from enum import Enum
 import pickle
 from PIL import Image
-#from pathlib import Path
 
-# Third party packages
 import torch
 import torch.utils.data as data
-import torchvision.datasets as dset
-import torchvision.transforms as transforms
 import numpy as np
 from pycocotools.coco import COCO
-import nltk
+#import nltk
 
-# Local packages
-from .vocabulary import Vocabulary
-from .tokenizer.ptbtokenizer import PTBTokenizer
-
-class DataPreparation:
-    def __init__(self, data_path='./data', batch_size=128, num_workers=4):
-        self.data_path = data_path
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-
-    def get_coco_data(self, vocab=None, tokens_train=None, tokens_val=None):
-        train_path = os.path.join(self.data_path, CocoDataset.image_train_path)
-        val_path = os.path.join(self.data_path, CocoDataset.image_val_path)
-        cap_train_path = os.path.join(self.data_path,
-                                      CocoDataset.caption_train_path)
-        cap_val_path = os.path.join(self.data_path,
-                                    CocoDataset.caption_val_path)
-
-        if tokens_train is None:
-            tokens_train = CocoDataset.get_tokenized_captions(self.data_path, True)
-        if tokens_val is None:
-            tokens_val = CocoDataset.get_tokenized_captions(self.data_path, False)
-        if vocab is None:
-            vocab = CocoDataset.get_vocabulary(self.data_path, tokens_train)
-
-        transform_train = transforms.Compose([transforms.Resize(256),
-                                        transforms.RandomCrop(224),
-                                        transforms.RandomHorizontalFlip(),
-                                        transforms.ToTensor(),
-                                        transforms.Normalize(mean=(0.485, 0.456, 0.406),
-                                                             std=(0.229, 0.224, 0.225))])
-
-        transform_val = transforms.Compose([transforms.Resize(224),
-                                        transforms.CenterCrop(224),
-                                        transforms.ToTensor(),
-                                        transforms.Normalize(mean=(0.485, 0.456, 0.406),
-                                                             std=(0.229, 0.224, 0.225))])
-
-        coco_caption_train = CocoDataset(root=train_path,
-                                         json=cap_train_path,
-                                         vocab=vocab,
-                                         tokenized_captions=tokens_train,
-                                         ids_based_on=CocoDataset.ID_BASE.CAPTIONS,
-                                         transform=transform_train)
-
-        coco_caption_val = CocoDataset(root=val_path,
-                                         json=cap_val_path,
-                                         vocab=vocab,
-                                         tokenized_captions=tokens_val,
-                                         ids_based_on=CocoDataset.ID_BASE.IMAGES,
-                                         transform=transform_val)
-
-
-        train_loader = torch.utils.data.DataLoader(dataset=coco_caption_train,
-                                                           batch_size=self.batch_size,
-                                                           shuffle=True,
-                                                           num_workers=self.num_workers,
-                                                           collate_fn=CocoDataset.collate_fn)
-
-        val_loader = torch.utils.data.DataLoader(dataset=coco_caption_val,
-                                                         batch_size=self.batch_size,
-                                                         shuffle=False,
-                                                         num_workers=self.num_workers,
-                                                         collate_fn=CocoDataset.collate_fn)
-
-
-        return train_loader, val_loader, vocab
-
-
+from utils.vocabulary import Vocabulary
+from utils.tokenizer.ptbtokenizer import PTBTokenizer
 
 # Adapted from
 # https://github.com/yunjey/pytorch-tutorial/tree/master/tutorials/03-advanced/image_captioning
 class CocoDataset(data.Dataset):
+
     """COCO Custom Dataset compatible with torch.utils.data.DataLoader."""
 
     image_train_path = 'train2014'
@@ -170,8 +99,10 @@ class CocoDataset(data.Dataset):
         target = torch.Tensor(caption)
         return image, target, base_id
 
+
     def __len__(self):
         return len(self.ids)
+
 
     @staticmethod
     def collate_fn(data):
@@ -206,6 +137,7 @@ class CocoDataset(data.Dataset):
 
         return images, word_inputs, word_targets, lengths, ids
 
+
     @staticmethod
     def tokenize(caption):
         """
@@ -216,12 +148,14 @@ class CocoDataset(data.Dataset):
         t = PTBTokenizer()
         return t.tokenize_caption(caption)
 
+
     @staticmethod
     def build_tokenized_captions(json):
         coco = COCO(json)
         t = PTBTokenizer()
         tokenized_captions = t.tokenize(coco.anns)
         return tokenized_captions
+
 
     @staticmethod
     def get_tokenized_captions(data_path, train=True):
@@ -290,24 +224,3 @@ class CocoDataset(data.Dataset):
             Vocabulary.save(vocab, vocab_path)
             print("Saved the vocabulary to '%s'" %vocab_path)
         return vocab
-
-
-def get_loader(root, json, vocab, transform, batch_size, shuffle, num_workers):
-    """Returns torch.utils.data.DataLoader for custom coco dataset."""
-    # COCO caption dataset
-    coco = CocoDataset(root=root,
-                       json=json,
-                       vocab=vocab,
-                       transform=transform)
-
-    # Data loader for COCO dataset
-    # This will return (images, captions, lengths) for every iteration.
-    # images: tensor of shape (batch_size, 3, 224, 224).
-    # captions: tensor of shape (batch_size, padded_length).
-    # lengths: list indicating valid length for each caption. length is (batch_size).
-    data_loader = torch.utils.data.DataLoader(dataset=coco,
-                                              batch_size=batch_size,
-                                              shuffle=shuffle,
-                                              num_workers=num_workers,
-                                              collate_fn=collate_fn)
-    return data_loader
