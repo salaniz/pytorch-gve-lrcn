@@ -8,7 +8,6 @@ from .pretrained_models import PretrainedModel
 class LRCN(nn.Module):
     def __init__(self, pretrained_model_name, word_embed_size, hidden_size,
                  vocab_size, layers_to_truncate=1, is_factored=True):
-        """Set the hyper-parameters and build the layers."""
         super(LRCN, self).__init__()
         self.vision_model = PretrainedModel(pretrained_model_name,
                 layers_to_truncate=layers_to_truncate)
@@ -34,20 +33,15 @@ class LRCN(nn.Module):
 
 
     def init_weights(self):
-        """Initialize weights."""
         self.word_embed.weight.data.uniform_(-0.1, 0.1)
         self.linear.weight.data.uniform_(-0.1, 0.1)
         self.linear.bias.data.fill_(0)
 
     def forward(self, image_inputs, captions, lengths):
-        """Decode image feature vectors and generates captions."""
-        #print(image_inputs.shape)
         image_features = self.vision_model(image_inputs)
         image_features = image_features.unsqueeze(1)
         embeddings = self.word_embed(captions)
         image_features = image_features.expand(-1, embeddings.size(1), -1)
-        #print(image_features.shape)
-        #print(embeddings.shape)
         if not self.is_factored:
             embeddings = torch.cat((image_features, embeddings), 2)
             packed = pack_padded_sequence(embeddings, lengths, batch_first=True)
@@ -62,21 +56,8 @@ class LRCN(nn.Module):
                     batch_first=True)
             hiddens, _ = self.lstm2(packed_hiddens)
 
-        #packed = pack_padded_sequence(embeddings, lengths, batch_first=True)
-        #hiddens, _ = self.lstm(packed)
         outputs = self.linear(hiddens[0])
         return outputs
-
-    """
-    def update_state_dict(self):
-        vision_model_dict = self.vision_model.state_dict()
-        current_model_dict = self.state_dict()
-
-        # Remove parameters from pretrained model from state dict
-        updated_state_dict = {k: v for k, v in current_model_dict.items() if k
-                not in vision_model_dict}
-        current_model_dict.update(updated_state_dict)
-    """
 
     def custom_state_dict(self):
         state_dict = self.state_dict()
@@ -86,7 +67,6 @@ class LRCN(nn.Module):
 
     def sample(self, image_inputs, start_word, end_word, states=(None,None),
             max_sampling_length=50):
-        """Samples captions for given image features (Greedy search)."""
         sampled_ids = []
         image_features = self.vision_model(image_inputs)
         image_features = image_features.unsqueeze(1)
@@ -99,15 +79,19 @@ class LRCN(nn.Module):
 
         i = 0
         while not reached_end.all() and i < max_sampling_length:
-            if not self.is_factored:
-                lstm1_input = torch.cat((image_features, embedded_word), 2)
-                lstm1_output, lstm1_states = self.lstm1(lstm1_input, lstm1_states)
-                lstm2_output, lstm2_states = self.lstm2(lstm1_output, lstm2_states)
-            else:
-                lstm1_output, lstm1_states = self.lstm1(embedded_word, lstm1_states)
-                lstm1_output = torch.cat((image_features, lstm1_output), 2)
-                lstm2_output, lstm2_states = self.lstm2(lstm1_output, lstm2_states)
+            lstm1_input = embedded_word
 
+            if not self.is_factored:
+                lstm1_input = torch.cat((image_features, lstm1_input), 2)
+
+            # LSTM 1
+            lstm1_output, lstm1_states = self.lstm1(lstm1_input, lstm1_states)
+
+            if self.is_factored:
+                lstm1_output = torch.cat((image_features, lstm1_output), 2)
+
+            # LSTM 2
+            lstm2_output, lstm2_states = self.lstm2(lstm1_output, lstm2_states)
 
             outputs = self.linear(lstm2_output.squeeze(1))
             predicted = outputs.max(1)[1]
