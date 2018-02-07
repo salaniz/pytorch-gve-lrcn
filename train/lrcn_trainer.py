@@ -18,13 +18,14 @@ class LRCNTrainer:
         # TODO: Implement checkpoints
         if checkpoint is None:
             self.criterion = nn.CrossEntropyLoss()
-            self.params = filter(lambda p: p.requires_grad, model.parameters())
-            self.optimizer = torch.optim.Adam(self.params, lr=args.learning_rate)
+            params = filter(lambda p: p.requires_grad, model.parameters())
+            self.optimizer = torch.optim.Adam(params, lr=args.learning_rate)
             self.total_steps = len(data_loader)
             self.num_epochs = args.num_epochs
             self.log_step = args.log_step
+            self.curr_epoch = 0
 
-    def train_epoch(self, epoch_num):
+    def train_epoch(self):
         for i, (images, word_inputs, word_targets, lengths, ids) in enumerate(self.data_loader):
             # Prepare mini-batch dataset
             images = to_var(images, self.cuda)
@@ -38,8 +39,10 @@ class LRCNTrainer:
             # Print log info
             if i % self.log_step == 0:
                 print('Epoch [%d/%d], Step [%d/%d], Loss: %.4f, Perplexity: %5.4f'
-                      %(epoch_num, self.num_epochs, i, self.total_steps,
+                      %(self.curr_epoch, self.num_epochs, i, self.total_steps,
                         loss.data[0], np.exp(loss.data[0])))
+
+        self.curr_epoch += 1
 
 
     def train_step(self, images, word_inputs, word_targets, lengths):

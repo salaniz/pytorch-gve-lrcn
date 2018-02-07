@@ -12,6 +12,9 @@ else
     cd $cwd
     mv cocoapi/PythonAPI/pycocotools .
     rm -rf cocoapi
+
+    # Install COCO evaluation tools
+    git clone https://github.com/salaniz/pycocoevalcap.git
 fi
 
 

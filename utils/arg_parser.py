@@ -25,11 +25,15 @@ def get_args():
     parser.add_argument('--model', type=str, default='lrcn',
                         help="deep learning model",
                         choices=['lrcn'])
+    parser.add_argument('--dataset', type=str, default='coco',
+                        choices=['coco'])
     parser.add_argument('--pretrained-model', type=str, default='vgg16',
                         help="[LRCN] name of pretrained model for image features",
                         choices=PretrainedModel.SUPPORTED_MODEL_NAMES)
-    parser.add_argument('--dataset', type=str, default='coco',
-                        choices=['coco'])
+    parser.add_argument('--layers-to-truncate', type=int, default=1,
+                        help="[LRCN] number of final FC layers to be removed from pretrained model")
+    parser.add_argument('--not-factored', action='store_true',
+                        help="[LRCN] model will not factor word and image input to LSTMs")
 
     parser.add_argument('--embedding-size', type=int , default=1000,
                         help='dimension of the word embedding')
@@ -43,6 +47,20 @@ def get_args():
 
     args = parser.parse_args()
 
-    vars(args)["cuda"] = torch.cuda.is_available() and not args.disable_cuda
+    arg_vars = vars(args)
+    arg_vars["cuda"] = torch.cuda.is_available() and not args.disable_cuda
+    del arg_vars["disable_cuda"]
+
+    # TODO: Check if there is a direct way to do this
+    arg_vars["factored"] = not args.not_factored
+    del arg_vars["not_factored"]
 
     return args
+
+
+def print_args(args):
+    space = 30
+    print("Arguments:")
+    for arg, value in vars(args).items():
+        print('{:{space}}{}'.format(arg, value, space=space))
+    print()

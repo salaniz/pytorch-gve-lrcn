@@ -32,7 +32,6 @@ class LRCN(nn.Module):
         self.input_size = (self.vision_model.input_size, vocab_size)
         self.output_size = vocab_size
 
-        print(self)
 
     def init_weights(self):
         """Initialize weights."""
@@ -115,21 +114,9 @@ class LRCN(nn.Module):
             reached_end = reached_end | predicted.eq(end_word)
             sampled_ids.append(predicted.unsqueeze(1))
             embedded_word = self.word_embed(predicted)
-            embedded_word = embedded_word.unsqueeze(1)                         # (batch_size, 1, word_embed_size)
+            embedded_word = embedded_word.unsqueeze(1)
 
             i += 1
 
-        sampled_ids = torch.cat(sampled_ids, 1)                  # (batch_size, 20)
+        sampled_ids = torch.cat(sampled_ids, 1)
         return sampled_ids.squeeze()
-
-        """
-        for i in range(max_sampling_length):                                      # maximum sampling length
-            hiddens, states = self.lstm(inputs, states)          # (batch_size, 1, hidden_size),
-            outputs = self.linear(hiddens.squeeze(1))            # (batch_size, vocab_size)
-            predicted = outputs.max(1)[1]
-            sampled_ids.append(predicted)
-            inputs = self.word_embed(predicted)
-            inputs = inputs.unsqueeze(1)                         # (batch_size, 1, word_embed_size)
-        sampled_ids = torch.cat(sampled_ids, 1)                  # (batch_size, 20)
-        return sampled_ids.squeeze()
-        """
