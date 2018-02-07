@@ -1,4 +1,4 @@
-from models.model import ModelLoader
+from models.model_loader import ModelLoader
 from train.trainer import Trainer
 from utils.data.data_prep import DataPreparation
 import utils.arg_parser
