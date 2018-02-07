@@ -1,6 +1,7 @@
 # Project-related
 /data/
 pycocotools/
+pycocoevalcap/
 
 # PYTHON
 # Byte-compiled / optimized / DLL files

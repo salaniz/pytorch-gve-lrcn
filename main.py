@@ -14,7 +14,7 @@ if __name__ == '__main__':
     print("Preparing Data ...")
     data_prep = DataPreparation(args.data_path, batch_size=args.batch_size,
                                 num_workers=args.num_workers)
-    dataset, data_loader = getattr(data_prep, args.dataset)(args.pretrained_model, False)
+    dataset, data_loader = getattr(data_prep, args.dataset)(args.pretrained_model, args.train)
     print()
 
     print("Loading Model ...")

@@ -183,7 +183,7 @@ class CocoDataset(data.Dataset):
 
     @staticmethod
     def build_vocab(json, tokenized_captions, threshold):
-        """Build a simple vocabulary wrapper."""
+        print("Building vocabulary")
         coco = COCO(json)
         counter = Counter()
         ids = coco.anns.keys()
@@ -194,9 +194,6 @@ class CocoDataset(data.Dataset):
             """
             tokens = tokenized_captions[id]
             counter.update(tokens)
-
-            if i % 1000 == 0:
-                print("[%d/%d] captions tokenized." %(i, len(ids)))
 
         # If the word frequency is less than 'threshold', then the word is discarded.
         words = [word for word, cnt in counter.items() if cnt >= threshold]
