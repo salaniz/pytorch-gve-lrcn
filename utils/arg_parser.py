@@ -44,8 +44,8 @@ def get_args():
     parser.add_argument('--batch-size', type=int, default=128)
     parser.add_argument('--learning-rate', type=float, default=0.001)
 
-    parser.add_argument('--eval', action='store_true',
-                        help="evaluate model instead of train")
+    parser.add_argument('--eval', type=str,
+                        help="path of checkpoint to be evaluated")
 
 
     args = parser.parse_args()
@@ -59,7 +59,6 @@ def get_args():
     del arg_vars["not_factored"]
 
     arg_vars["train"] = not args.eval
-    del arg_vars["eval"]
 
     return args
 

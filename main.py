@@ -3,6 +3,9 @@ from train.trainer import Trainer
 from utils.data.data_prep import DataPreparation
 import utils.arg_parser
 
+import json
+import torch
+
 if __name__ == '__main__':
 
     # Parse arguments
@@ -22,10 +25,28 @@ if __name__ == '__main__':
     model = getattr(ml, args.model)()
     print(model, '\n')
 
+    if not args.train:
+        print("Loading Model Weights ...")
+        model.load_state_dict(torch.load("/home/stephan/HDD/lrcn-31-1000.pkl",
+            map_location=lambda storage, loc: storage), strict=False)
+        #model.eval()
+
     # Get trainer
     trainer = getattr(Trainer, args.model)(args, model, dataset, data_loader)
 
-    # Start training
-    print("Training ...")
+    if args.train:
+        print("Training ...")
+    else:
+        print("Evaluating ...")
+        vars(args)['num_epochs'] = 1
+
+    # Start training/evaluation
     for epoch in range(args.num_epochs):
-        trainer.train_epoch()
+        if args.train:
+            trainer.train_epoch()
+        else:
+            result = trainer.train_epoch()
+
+    if not args.train:
+        with open('results.json', 'w') as f:
+            json.dump(result, f)
