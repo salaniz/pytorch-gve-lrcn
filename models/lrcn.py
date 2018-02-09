@@ -24,10 +24,10 @@ class LRCN(nn.Module):
             lstm2_input_size += self.vision_model.output_size
 
         self.dropout0 = nn.Dropout()
-        self.dropout1 = nn.Dropout()
-        self.dropout2 = nn.Dropout()
         self.lstm1 = nn.LSTM(lstm1_input_size, hidden_size, batch_first=True)
+        self.dropout1 = nn.Dropout()
         self.lstm2 = nn.LSTM(lstm2_input_size, hidden_size, batch_first=True)
+        self.dropout2 = nn.Dropout()
         self.linear = nn.Linear(hidden_size, vocab_size)
         self.init_weights()
 
@@ -66,8 +66,8 @@ class LRCN(nn.Module):
         outputs = self.linear(hiddens)
         return outputs
 
-    def custom_state_dict(self):
-        state_dict = self.state_dict()
+    def state_dict(self):
+        state_dict = super(LRCN, self).state_dict()
         for key in self.vision_model.state_dict().keys():
             del state_dict['vision_model.{}'.format(key)]
         return state_dict

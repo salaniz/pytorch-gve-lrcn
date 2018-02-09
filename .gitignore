@@ -1,4 +1,5 @@
 # Project-related
+checkpoints
 /data/
 pycocotools/
 pycocoevalcap/

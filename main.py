@@ -1,23 +1,47 @@
+import time
+import os
+import json
+
 from models.model_loader import ModelLoader
-from train.trainer import Trainer
+from train.trainer_loader import TrainerLoader
 from utils.data.data_prep import DataPreparation
 import utils.arg_parser
 
-import json
 import torch
 
 if __name__ == '__main__':
+
 
     # Parse arguments
     args = utils.arg_parser.get_args()
     # Print arguments
     utils.arg_parser.print_args(args)
 
+    job_string = time.strftime("{}-{}-D%Y-%m-%d-T%H-%M-%S".format(args.model, args.dataset))
+
+    job_path = os.path.join(args.checkpoint_path, job_string)
+
+
+    # Create checkpoint directory
+    if not os.path.exists(job_path):
+        os.makedirs(job_path)
+
+    # Save job arguments
+    with open(os.path.join(job_path, 'config.json'), 'w') as f:
+        json.dump(vars(args), f)
+
     # Data preparation
     print("Preparing Data ...")
     data_prep = DataPreparation(args.data_path, batch_size=args.batch_size,
                                 num_workers=args.num_workers)
-    dataset, data_loader = getattr(data_prep, args.dataset)(args.pretrained_model, args.train)
+    data_creator = getattr(data_prep, args.dataset)
+    dataset, data_loader = data_creator(args.pretrained_model, args.train)
+
+    if args.train:
+        val_dataset, val_data_loader = data_creator(args.pretrained_model, False)
+
+    # TODO: If eval + checkpoint load validation set
+
     print()
 
     print("Loading Model ...")
@@ -25,14 +49,19 @@ if __name__ == '__main__':
     model = getattr(ml, args.model)()
     print(model, '\n')
 
+    # TODO: Remove and handle with checkpoints
     if not args.train:
         print("Loading Model Weights ...")
         model.load_state_dict(torch.load("/home/stephan/HDD/lrcn-31-1000.pkl",
             map_location=lambda storage, loc: storage), strict=False)
-        #model.eval()
+        model.eval()
 
     # Get trainer
-    trainer = getattr(Trainer, args.model)(args, model, dataset, data_loader)
+    trainer_creator = getattr(TrainerLoader, args.model)
+    trainer = trainer_creator(args, model, dataset, data_loader)
+    if args.train:
+        evaluator = trainer_creator(args, model, val_dataset, val_data_loader)
+        evaluator.train = False
 
     if args.train:
         print("Training ...")
@@ -40,10 +69,40 @@ if __name__ == '__main__':
         print("Evaluating ...")
         vars(args)['num_epochs'] = 1
 
+
     # Start training/evaluation
-    for epoch in range(args.num_epochs):
+    max_score = 0
+    while trainer.curr_epoch < args.num_epochs:
         if args.train:
             trainer.train_epoch()
+
+
+            # Eval & Checkpoint
+            checkpoint_name = "ckpt-e{}".format(trainer.curr_epoch)
+            checkpoint_path = os.path.join(job_path, checkpoint_name)
+
+            result = evaluator.train_epoch()
+            score = val_dataset.eval(result, checkpoint_path)
+
+            # TODO: Eval model
+            # Save the models
+            checkpoint = {'epoch': trainer.curr_epoch,
+                          'max_score': max_score,
+                          'optimizer' : trainer.optimizer.state_dict()}
+            checkpoint_path += ".pth"
+            torch.save(model.state_dict(), checkpoint_path)
+            torch.save(checkpoint, os.path.join(job_path,
+                "training_checkpoint.pth"))
+            if score > max_score:
+                max_score = score
+                link_name = "best-ckpt.pth"
+                link_path = os.path.join(job_path, link_name)
+                if os.path.islink(link_path):
+                    os.unlink(link_path)
+                dir_fd = os.open(os.path.dirname(link_path), os.O_RDONLY)
+                os.symlink(os.path.basename(checkpoint_path), link_name, dir_fd=dir_fd)
+                os.close(dir_fd)
+
         else:
             result = trainer.train_epoch()
 

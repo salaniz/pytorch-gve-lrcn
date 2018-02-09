@@ -2,12 +2,14 @@ import os
 from collections import Counter
 from enum import Enum
 import pickle
+import json
 from PIL import Image
 
 import torch
 import torch.utils.data as data
 import numpy as np
 from pycocotools.coco import COCO
+from pycocoevalcap.eval import COCOEvalCap
 #import nltk
 
 from utils.vocabulary import Vocabulary
@@ -102,6 +104,22 @@ class CocoDataset(data.Dataset):
 
     def __len__(self):
         return len(self.ids)
+
+
+    def eval(self, captions, checkpoint_path, score_metric='CIDEr'):
+        # TODO: Make strings variables
+        captions_path = checkpoint_path + "-val-captions.json"
+        with open(captions_path, 'w') as f:
+            json.dump(captions, f)
+        cocoRes = self.coco.loadRes(captions_path)
+        cocoEval = COCOEvalCap(self.coco, cocoRes)
+        cocoEval.evaluate()
+        json.dump(cocoEval.evalImgs, open(checkpoint_path + "-val-metrics-imgs.json", 'w'))
+        json.dump(cocoEval.eval,     open(checkpoint_path + "-val-metrics-overall.json", 'w'))
+
+        print(cocoEval.eval.items())
+        return cocoEval.eval[score_metric]
+
 
 
     @staticmethod

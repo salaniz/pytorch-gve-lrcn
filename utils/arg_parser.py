@@ -10,8 +10,9 @@ def get_args():
     parser.add_argument('--data-path', type=str,
                         default='./data',
                         help="root path of all data")
-    parser.add_argument('--save-step', type=int , default=1000,
-                        help="step size for saving model checkpoints")
+    parser.add_argument('--checkpoint-path', type=str,
+                        default='./checkpoints',
+                        help="path checkpoints are stored or loaded")
     parser.add_argument('--log-step', type=int , default=10,
                         help="step size for prining logging information")
     parser.add_argument('--num-workers', type=int, default=4,
@@ -47,7 +48,6 @@ def get_args():
     parser.add_argument('--eval', type=str,
                         help="path of checkpoint to be evaluated")
 
-
     args = parser.parse_args()
 
     arg_vars = vars(args)
@@ -59,6 +59,9 @@ def get_args():
     del arg_vars["not_factored"]
 
     arg_vars["train"] = not args.eval
+    del arg_vars["eval"]
+
+    arg_vars["torch_seed"] = torch.initial_seed()
 
     return args
 

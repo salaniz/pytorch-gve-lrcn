@@ -26,7 +26,6 @@ class LRCNTrainer:
             self.total_steps = len(data_loader)
             self.num_epochs = args.num_epochs
             self.log_step = args.log_step
-            self.save_step = args.save_step
             self.curr_epoch = 0
 
     def train_epoch(self):
@@ -60,17 +59,22 @@ class LRCNTrainer:
                 print()
 
 
-            # Save the models
-            if self.train and (i+1) % self.save_step == 0:
-                torch.save(self.model.custom_state_dict(),
-                           os.path.join('/home/stephan/HDD',
-                                        'lrcn-%d-%d.pkl' %(self.curr_epoch+1, i+1)))
-                print("Sample sentences:")
+        """
+        # Save the models
+        if self.train:
+            checkpoint = {'epoch': self.curr_epoch + 1,
+                          'state_dict': self.model.state_dict(),
+                          'score': score,
+                          'optimizer' : self.optimizer.state_dict()}
+            torch.save(checkpoint,
+                       os.path.join('/home/stephan/HDD',
+                                    'lrcn-%d-%d.pkl' %(self.curr_epoch+1, i+1)))
+            print("Sample sentences:")
 
-                generated_captions = self.eval_step(images, ids)
-                for item in generated_captions:
-                    print(item["caption"])
-
+            generated_captions = self.eval_step(images, ids)
+            for item in generated_captions:
+                print(item["caption"])
+        """
 
         self.curr_epoch += 1
         return result
