@@ -329,6 +329,7 @@ class CocoDataset(data.Dataset):
             vocab = Vocabulary.load(vocab_path)
         else:
             vocab = cls.build_vocab(captions_path, tokenized_captions, threshold)
+            #TODO: check if saving is safe
             Vocabulary.save(vocab, vocab_path)
             print("Saved the vocabulary to '%s'" %vocab_path)
         return vocab
