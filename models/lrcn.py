@@ -18,11 +18,13 @@ class LRCN(nn.Module):
         lstm2_input_size = hidden_size
         if not self.is_factored:
             # Vision features are input to 1st LSTM
-            lstm1_input_size += self.vision_model.output_size
+            lstm1_input_size += hidden_size
         else:
             # Vision features are input to 2nd LSTM (when is_factored == True)
-            lstm2_input_size += self.vision_model.output_size
+            lstm2_input_size += hidden_size
 
+        self.linear0 = nn.Linear(self.vision_model.output_size, hidden_size)
+        self.relu = nn.ReLU()
         self.dropout0 = nn.Dropout()
         self.lstm1 = nn.LSTM(lstm1_input_size, hidden_size, batch_first=True)
         self.dropout1 = nn.Dropout()
@@ -42,6 +44,8 @@ class LRCN(nn.Module):
 
     def forward(self, image_inputs, captions, lengths):
         image_features = self.vision_model(image_inputs)
+        image_features = self.linear0(image_features)
+        image_features = self.relu(image_features)
         image_features = image_features.unsqueeze(1)
         embeddings = self.word_embed(captions)
         embeddings = self.dropout0(embeddings)
@@ -76,6 +80,8 @@ class LRCN(nn.Module):
             max_sampling_length=50):
         sampled_ids = []
         image_features = self.vision_model(image_inputs)
+        image_features = self.linear0(image_features)
+        image_features = self.relu(image_features)
         image_features = image_features.unsqueeze(1)
         embedded_word = self.word_embed(start_word)
         embedded_word = embedded_word.expand(image_features.size(0), -1, -1)
