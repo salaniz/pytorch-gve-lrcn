@@ -40,8 +40,10 @@ def get_args():
 
     parser.add_argument('--embedding-size', type=int , default=1000,
                         help='dimension of the word embedding')
-    parser.add_argument('--hidden-size', type=int , default=1000 ,
+    parser.add_argument('--hidden-size', type=int , default=1000,
                         help='dimension of hidden layers')
+    parser.add_argument('--vocab-threshold', type=int , default=1,
+                        help='vocabulary includes words with count of at least threshold')
 
     parser.add_argument('--num-epochs', type=int, default=50)
     parser.add_argument('--batch-size', type=int, default=128)

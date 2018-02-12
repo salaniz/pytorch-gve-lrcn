@@ -236,6 +236,6 @@ class CocoDataset(data.Dataset):
         else:
             path = os.path.join(data_path, CocoDataset.caption_train_path)
             vocab = CocoDataset.build_vocab(path, tokenized_captions, threshold)
-            Vocabulary.save(vocab, vocab_path)
+            #Vocabulary.save(vocab, vocab_path)
             print("Saved the vocabulary to '%s'" %vocab_path)
         return vocab

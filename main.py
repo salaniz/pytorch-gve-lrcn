@@ -42,10 +42,12 @@ if __name__ == '__main__':
     data_prep = DataPreparation(args.data_path, batch_size=args.batch_size,
                                 num_workers=args.num_workers)
     data_creator = getattr(data_prep, args.dataset)
-    dataset, data_loader = data_creator(args.pretrained_model, args.train)
+    dataset, data_loader = data_creator(args.pretrained_model, args.train,
+            threshold=args.vocab_threshold)
 
     if args.train:
-        val_dataset, val_data_loader = data_creator(args.pretrained_model, False)
+        val_dataset, val_data_loader = data_creator(args.pretrained_model,
+                False, threshold=args.vocab_threshold)
 
     # TODO: If eval + checkpoint load validation set
 

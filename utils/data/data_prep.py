@@ -14,7 +14,7 @@ class DataPreparation:
         self.batch_size = batch_size
         self.num_workers = num_workers
 
-    def coco(self, vision_model, train, vocab=None, tokens=None):
+    def coco(self, vision_model, train, vocab=None, tokens=None, threshold=None):
         if tokens is None:
             tokens = CocoDataset.get_tokenized_captions(self.data_path, train)
         if vocab is None:
@@ -22,7 +22,8 @@ class DataPreparation:
                 tokens_train = tokens
             else:
                 tokens_train = CocoDataset.get_tokenized_captions(self.data_path, True)
-            vocab = CocoDataset.get_vocabulary(self.data_path, tokens_train)
+            vocab = CocoDataset.get_vocabulary(self.data_path, tokens_train,
+                    threshold)
 
         if train:
             images_path = CocoDataset.image_train_path
