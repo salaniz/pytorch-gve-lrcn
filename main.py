@@ -6,6 +6,7 @@ from models.model_loader import ModelLoader
 from train.trainer_loader import TrainerLoader
 from utils.data.data_prep import DataPreparation
 import utils.arg_parser
+from utils.logger import Logger
 
 import torch
 
@@ -56,11 +57,15 @@ if __name__ == '__main__':
             map_location=lambda storage, loc: storage), strict=False)
         model.eval()
 
+    # Create logger
+    logger = Logger(os.path.join(job_path, 'logs'))
+
     # Get trainer
     trainer_creator = getattr(TrainerLoader, args.model)
-    trainer = trainer_creator(args, model, dataset, data_loader)
+    trainer = trainer_creator(args, model, dataset, data_loader, logger)
     if args.train:
-        evaluator = trainer_creator(args, model, val_dataset, val_data_loader)
+        evaluator = trainer_creator(args, model, val_dataset, val_data_loader,
+            logger)
         evaluator.train = False
 
     if args.train:
@@ -83,6 +88,8 @@ if __name__ == '__main__':
 
             result = evaluator.train_epoch()
             score = val_dataset.eval(result, checkpoint_path)
+
+            logger.scalar_summary('score', score, trainer.curr_epoch)
 
             # TODO: Eval model
             # Save the models

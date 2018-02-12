@@ -8,17 +8,18 @@ import numpy as np
 from utils.misc import to_var
 
 class LRCNTrainer:
-    def __init__(self, args, model, dataset, data_loader, checkpoint=None):
+    def __init__(self, args, model, dataset, data_loader, logger, checkpoint=None):
         self.model = model
         self.dataset = dataset
         self.data_loader = data_loader
         self.cuda = args.cuda
         self.train = args.train
+        self.logger = logger
 
         if self.cuda:
             model.cuda()
 
-        # TODO: Implement checkpoints
+        # TODO: Implement checkpoint recovery
         if checkpoint is None:
             self.criterion = nn.CrossEntropyLoss()
             self.params = filter(lambda p: p.requires_grad, model.parameters())
@@ -44,6 +45,10 @@ class LRCNTrainer:
 
                 loss = self.train_step(images, word_inputs, word_targets, lengths)
                 result.append(loss.data[0])
+
+                step = self.curr_epoch * self.total_steps + i + 1
+                self.logger.scalar_summary('batch_loss', loss.data[0], step)
+
             else:
                 generated_captions = self.eval_step(images, ids)
                 result.extend(generated_captions)
@@ -59,24 +64,11 @@ class LRCNTrainer:
                 print()
 
 
-        """
-        # Save the models
-        if self.train:
-            checkpoint = {'epoch': self.curr_epoch + 1,
-                          'state_dict': self.model.state_dict(),
-                          'score': score,
-                          'optimizer' : self.optimizer.state_dict()}
-            torch.save(checkpoint,
-                       os.path.join('/home/stephan/HDD',
-                                    'lrcn-%d-%d.pkl' %(self.curr_epoch+1, i+1)))
-            print("Sample sentences:")
-
-            generated_captions = self.eval_step(images, ids)
-            for item in generated_captions:
-                print(item["caption"])
-        """
-
         self.curr_epoch += 1
+
+        if self.train:
+            self.logger.scalar_summary('epoch_loss', np.mean(result), self.curr_epoch)
+
         return result
 
 
