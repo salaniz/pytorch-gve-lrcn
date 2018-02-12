@@ -20,6 +20,8 @@ def get_args():
 
     parser.add_argument('--disable-cuda', action='store_true',
                         help="disable the use of CUDA")
+    parser.add_argument('--cuda-device', type=int , default=0,
+                        help="specify which GPU to use")
 
 
     # Model parameters

@@ -18,14 +18,20 @@ if __name__ == '__main__':
     # Print arguments
     utils.arg_parser.print_args(args)
 
+    if args.cuda:
+        torch.cuda.device(args.cuda_device)
+
     job_string = time.strftime("{}-{}-D%Y-%m-%d-T%H-%M-%S".format(args.model, args.dataset))
 
     job_path = os.path.join(args.checkpoint_path, job_string)
 
 
-    # Create checkpoint directory
-    if not os.path.exists(job_path):
-        os.makedirs(job_path)
+    # Create new checkpoint directory
+    if os.path.exists(job_path):
+        i = 1
+        while os.path.exists(job_path + '-P{}'.format(i)):
+            i += 1
+    os.makedirs(job_path)
 
     # Save job arguments
     with open(os.path.join(job_path, 'config.json'), 'w') as f:
