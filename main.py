@@ -19,7 +19,7 @@ if __name__ == '__main__':
     utils.arg_parser.print_args(args)
 
     if args.cuda:
-        torch.cuda.device(args.cuda_device)
+        torch.cuda.set_device(args.cuda_device)
 
     job_string = time.strftime("{}-{}-D%Y-%m-%d-T%H-%M-%S".format(args.model, args.dataset))
 
