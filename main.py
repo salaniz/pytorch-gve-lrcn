@@ -20,16 +20,15 @@ if __name__ == '__main__':
     if args.cuda:
         torch.cuda.set_device(args.cuda_device)
 
-    job_string = time.strftime("{}-{}-D%Y-%m-%d-T%H-%M-%S".format(args.model, args.dataset))
+    job_string =
+    time.strftime("{}-{}-D%Y-%m-%d-T%H-%M-%S-G{}".format(args.model,
+        args.dataseti, args.cuda_device))
 
     job_path = os.path.join(args.checkpoint_path, job_string)
 
 
     # Create new checkpoint directory
-    if os.path.exists(job_path):
-        i = 1
-        while os.path.exists(job_path + '-P{}'.format(i)):
-            i += 1
+    #if not os.path.exists(job_path):
     os.makedirs(job_path)
 
     # Save job arguments
