@@ -27,9 +27,9 @@ def get_args():
     # Model parameters
     parser.add_argument('--model', type=str, default='lrcn',
                         help="deep learning model",
-                        choices=['lrcn'])
+                        choices=['lrcn', 'gve', 'sc'])
     parser.add_argument('--dataset', type=str, default='coco',
-                        choices=['coco'])
+                        choices=['coco', 'cub'])
     parser.add_argument('--pretrained-model', type=str, default='vgg16',
                         help="[LRCN] name of pretrained model for image features",
                         choices=PretrainedModel.SUPPORTED_MODEL_NAMES)
@@ -37,6 +37,8 @@ def get_args():
                         help="[LRCN] number of final FC layers to be removed from pretrained model")
     parser.add_argument('--not-factored', action='store_true',
                         help="[LRCN] model will not factor word and image input to LSTMs")
+    parser.add_argument('--sc-ckpt', type=str, default='data/cub/sentence_classifier_ckpt.pth',
+                        help="[GVE] path to checkpoint for pretrained sentence classifier")
 
     parser.add_argument('--embedding-size', type=int , default=1000,
                         help='dimension of the word embedding')

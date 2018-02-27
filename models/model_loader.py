@@ -1,4 +1,8 @@
+import torch
+
 from .lrcn import LRCN
+from .gve import GVE
+from .sentence_classifier import SentenceClassifier
 
 class ModelLoader:
     def __init__(self, args, dataset):
@@ -19,3 +23,36 @@ class ModelLoader:
                 layers_to_truncate, is_factored)
 
         return lrcn
+
+    def gve(self):
+        # GVE arguments
+        embedding_size = self.args.embedding_size
+        hidden_size = self.args.hidden_size
+        vocab_size = len(self.dataset.vocab)
+        input_size = self.dataset.input_size
+        num_classes = self.dataset.num_classes
+
+        sc = self.sc()
+        sc.load_state_dict(torch.load(self.args.sc_ckpt))
+        for param in sc.parameters():
+            param.requires_grad = False
+        sc.eval()
+
+        gve = GVE(input_size, embedding_size, hidden_size, vocab_size, sc,
+                num_classes)
+
+        return gve
+
+
+
+    def sc(self):
+        # Sentence classifier arguments
+        embedding_size = self.args.embedding_size
+        hidden_size = self.args.hidden_size
+        vocab_size = len(self.dataset.vocab)
+        num_classes = self.dataset.num_classes
+
+        sc = SentenceClassifier(embedding_size, hidden_size, vocab_size,
+                num_classes)
+
+        return sc

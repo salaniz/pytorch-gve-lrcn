@@ -3,9 +3,11 @@ import os
 
 # Third party packages
 import torch
+import torchvision.transforms as transforms
 
 # Local packages
 from .coco_dataset import CocoDataset
+from .cub_dataset import CubDataset
 from utils.transform import get_transform
 
 class DataPreparation:
@@ -14,47 +16,65 @@ class DataPreparation:
         self.batch_size = batch_size
         self.num_workers = num_workers
 
-    def coco(self, vision_model, train, vocab=None, tokens=None):
+    def coco_cub_preparation(self, vision_model, train, vocab=None,
+            tokens=None, dataset_name='coco'):
+
+
+        if dataset_name == 'coco':
+            Dataset = CocoDataset
+            transform = get_transform(vision_model, train)
+        elif dataset_name == 'cub':
+            Dataset = CubDataset
+            transform = None
+
+        data_path = os.path.join(self.data_path, Dataset.dataset_prefix)
+
         if tokens is None:
-            tokens = CocoDataset.get_tokenized_captions(self.data_path, train)
+            tokens = Dataset.get_tokenized_captions(data_path, train)
         if vocab is None:
             if train:
                 tokens_train = tokens
             else:
-                tokens_train = CocoDataset.get_tokenized_captions(self.data_path, True)
-            vocab = CocoDataset.get_vocabulary(self.data_path, tokens_train)
+                tokens_train = Dataset.get_tokenized_captions(data_path, True)
+            vocab = Dataset.get_vocabulary(data_path, tokens_train)
 
         if train:
-            images_path = CocoDataset.image_train_path
-            cap_path = CocoDataset.caption_train_path
-            ids_based_on = CocoDataset.ID_BASE.CAPTIONS
+            images_path = Dataset.image_train_path
+            cap_path = Dataset.caption_train_path
+            ids_based_on = Dataset.ID_BASE.CAPTIONS
         else:
-            images_path = CocoDataset.image_val_path
-            cap_path = CocoDataset.caption_val_path
-            ids_based_on = CocoDataset.ID_BASE.IMAGES
+            images_path = Dataset.image_val_path
+            cap_path = Dataset.caption_val_path
+            ids_based_on = Dataset.ID_BASE.IMAGES
 
-        images_path = os.path.join(self.data_path, images_path)
-        cap_path = os.path.join(self.data_path, cap_path)
-        transform = get_transform(vision_model, train)
+        images_path = os.path.join(data_path, images_path)
+        cap_path = os.path.join(data_path, cap_path)
 
-
-        dataset, loader = self.prepare_coco_loader(images_path,
-                                                   cap_path,
-                                                   vocab,
-                                                   tokens,
-                                                   ids_based_on,
-                                                   transform,
-                                                   train)
+        dataset, loader = self.prepare_coco_cub_loader(Dataset,
+                                                       images_path,
+                                                       cap_path,
+                                                       vocab,
+                                                       tokens,
+                                                       ids_based_on,
+                                                       transform,
+                                                       train)
 
         return dataset, loader
 
+    def coco(self, vision_model, train, vocab=None, tokens=None):
+        return self.coco_cub_preparation(vision_model, train, vocab=None,
+                tokens=None, dataset_name='coco')
 
-    def prepare_coco_loader(self, images_path, captions_path, vocab, tokens,
+    def cub(self, vision_model, train, vocab=None, tokens=None):
+        return self.coco_cub_preparation(vision_model, train, vocab=None,
+                tokens=None, dataset_name='cub')
+
+    def prepare_coco_cub_loader(self, Dataset, images_path, captions_path, vocab, tokens,
                             ids_based_on, transform, shuffle):
         """Returns torch.utils.data.DataLoader for custom coco dataset."""
         # COCO caption dataset
 
-        coco_dataset = CocoDataset(root=images_path,
+        coco_dataset = Dataset(root=images_path,
                                    json=captions_path,
                                    vocab=vocab,
                                    tokenized_captions=tokens,
@@ -70,6 +90,6 @@ class DataPreparation:
                                                   batch_size=self.batch_size,
                                                   shuffle=shuffle,
                                                   num_workers=self.num_workers,
-                                                  collate_fn=CocoDataset.collate_fn)
+                                                  collate_fn=Dataset.collate_fn)
 
         return coco_dataset, coco_loader

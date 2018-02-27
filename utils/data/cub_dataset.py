@@ -17,18 +17,20 @@ from utils.tokenizer.ptbtokenizer import PTBTokenizer
 
 # Adapted from
 # https://github.com/yunjey/pytorch-tutorial/tree/master/tutorials/03-advanced/image_captioning
-class CocoDataset(data.Dataset):
+class CubDataset(data.Dataset):
 
-    """COCO Custom Dataset compatible with torch.utils.data.DataLoader."""
+    """CUB Custom Dataset compatible with torch.utils.data.DataLoader."""
 
-    dataset_prefix = ''
-    image_train_path = 'train2014'
-    image_val_path = 'val2014'
-    caption_train_path = 'annotations/captions_train2014.json'
-    caption_val_path = 'annotations/captions_val2014.json'
-    vocab_file_name = 'coco_vocab.pkl'
-    tokens_train_file_name = 'coco_tokens_train.pkl'
-    tokens_val_file_name = 'coco_tokens_val.pkl'
+    dataset_prefix = 'cub'
+    image_features_path = 'CUB_feature_dict.p'
+    class_labels_path = 'CUB_label_dict.p'
+    image_train_path = ''
+    image_val_path = ''
+    caption_train_path = 'descriptions_bird.train_noCub.fg.json'
+    caption_val_path = 'descriptions_bird.val.fg.json'
+    vocab_file_name = 'cub_vocab.pkl'
+    tokens_train_file_name = 'cub_tokens_train.pkl'
+    tokens_val_file_name = 'cub_tokens_val.pkl'
 
     # punctuations to be removed from the sentences
     PUNCTUATIONS = ["''", "'", "``", "`", "(", ")", "{", "}",
@@ -40,7 +42,7 @@ class CocoDataset(data.Dataset):
 
 
     def __init__(self, root, json, vocab, tokenized_captions, transform=None,
-            ids_based_on=None):
+            ids_based_on=None, use_image_features=True):
         """Set the path for images, captions and vocabulary wrapper.
 
         Args:
@@ -57,15 +59,37 @@ class CocoDataset(data.Dataset):
 
         self.root = root
         self.coco = COCO(json)
+
         if ids_based_on == self.ID_BASE.CAPTIONS:
             self.ids = list(self.coco.anns.keys())
         elif ids_based_on == self.ID_BASE.IMAGES:
             self.ids = list(self.coco.imgs.keys())
         else:
             raise ValueError("Chosen base for COCO IDs is not implemented")
+
+        if use_image_features:
+            self.load_img_features()
+        self.load_class_labels()
+
         self.vocab = vocab
         self.tokens = tokenized_captions
         self.transform = transform
+
+        self.input_size = next(iter(self.img_features.values())).shape[0]
+
+    def load_img_features(self):
+        path = os.path.join(self.root, CubDataset.image_features_path)
+        with open(path, 'rb') as f:
+            feature_dict = pickle.load(f, encoding='latin1')
+        self.img_features = feature_dict
+
+    def load_class_labels(self):
+        path = os.path.join(self.root, CubDataset.class_labels_path)
+        with open(path, 'rb') as f:
+            label_dict = pickle.load(f, encoding='latin1')
+
+        self.num_classes = len(set(label_dict.values()))
+        self.class_labels = label_dict
 
 
     def __getitem__(self, index):
@@ -84,23 +108,28 @@ class CocoDataset(data.Dataset):
             rand_idx = np.random.randint(len(img_anns))
             ann_id = img_anns[rand_idx]['id']
 
+        class_label = torch.LongTensor([int(self.class_labels[img_id])-1])
         tokens = self.tokens[ann_id]
-        path = coco.loadImgs(img_id)[0]['file_name']
 
-        image = Image.open(os.path.join(self.root, path)).convert('RGB')
-        if self.transform is not None:
-            image = self.transform(image)
+        if self.img_features is not None:
+            image = self.img_features[img_id]
+            image = torch.Tensor(image)
+        else:
+            path = coco.loadImgs(img_id)[0]['file_name']
+            image = Image.open(os.path.join(self.root, path)).convert('RGB')
+            if self.transform is not None:
+                image = self.transform(image)
 
         """
         # Convert caption (string) to word ids.
-        tokens = CocoDataset.tokenize(caption)
+        tokens = CubDataset.tokenize(caption)
         """
         caption = []
         caption.append(vocab(vocab.start_token))
         caption.extend([vocab(token) for token in tokens])
         caption.append(vocab(vocab.end_token))
         target = torch.Tensor(caption)
-        return image, target, base_id
+        return image, target, base_id, class_label
 
 
     def __len__(self):
@@ -140,10 +169,11 @@ class CocoDataset(data.Dataset):
         """
         # Sort a data list by caption length (descending order).
         data.sort(key=lambda x: len(x[1]), reverse=True)
-        images, captions, ids = zip(*data)
+        images, captions, ids, labels = zip(*data)
 
         # Merge images (from tuple of 3D tensor to 4D tensor).
         images = torch.stack(images, 0)
+        labels = torch.cat(labels, 0)
 
         # Merge captions (from tuple of 1D tensor to 2D tensor).
         lengths = [len(cap)-1 for cap in captions]
@@ -154,7 +184,7 @@ class CocoDataset(data.Dataset):
             word_inputs[i, :end] = cap[:-1]
             word_targets[i, :end] = cap[1:]
 
-        return images, word_inputs, word_targets, lengths, ids
+        return images, word_inputs, word_targets, lengths, ids, labels
 
 
     @staticmethod
@@ -162,7 +192,7 @@ class CocoDataset(data.Dataset):
         """
         return [word for word in
                 nltk.tokenize.word_tokenize(str(caption).rstrip('.').lower()) if word not
-                in CocoDataset.PUNCTUATIONS]
+                in CubDataset.PUNCTUATIONS]
         """
         t = PTBTokenizer()
         return t.tokenize_caption(caption)
@@ -180,20 +210,20 @@ class CocoDataset(data.Dataset):
     def get_tokenized_captions(data_path, train=True):
         # Load or construct tokenized captions
         if train:
-            tokens_name = CocoDataset.tokens_train_file_name
+            tokens_name = CubDataset.tokens_train_file_name
         else:
-            tokens_name = CocoDataset.tokens_val_file_name
+            tokens_name = CubDataset.tokens_val_file_name
         tokens_path = os.path.join(data_path, tokens_name)
         if os.path.exists(tokens_path):
             with open(tokens_path, 'rb') as f:
                 tokens = pickle.load(f)
         else:
             if train:
-                caption_path = CocoDataset.caption_train_path
+                caption_path = CubDataset.caption_train_path
             else:
-                caption_path = CocoDataset.caption_val_path
+                caption_path = CubDataset.caption_val_path
             path = os.path.join(data_path, caption_path)
-            tokens = CocoDataset.build_tokenized_captions(path)
+            tokens = CubDataset.build_tokenized_captions(path)
             with open(tokens_path, 'wb') as f:
                 pickle.dump(tokens, f, protocol=pickle.HIGHEST_PROTOCOL)
             print("Saved the tokenized captions to '%s'" %tokens_path)
@@ -209,7 +239,7 @@ class CocoDataset(data.Dataset):
         for i, id in enumerate(ids):
             """
             caption = str(coco.anns[id]['caption'])
-            tokens = CocoDataset.tokenize(caption)
+            tokens = CubDataset.tokenize(caption)
             """
             tokens = tokenized_captions[id]
             counter.update(tokens)
@@ -231,12 +261,12 @@ class CocoDataset(data.Dataset):
     @staticmethod
     def get_vocabulary(data_path, tokenized_captions, threshold=1):
         # Load or construct vocabulary
-        vocab_path = os.path.join(data_path, CocoDataset.vocab_file_name)
+        vocab_path = os.path.join(data_path, CubDataset.vocab_file_name)
         if os.path.exists(vocab_path):
             vocab = Vocabulary.load(vocab_path)
         else:
-            path = os.path.join(data_path, CocoDataset.caption_train_path)
-            vocab = CocoDataset.build_vocab(path, tokenized_captions, threshold)
+            path = os.path.join(data_path, CubDataset.caption_train_path)
+            vocab = CubDataset.build_vocab(path, tokenized_captions, threshold)
             Vocabulary.save(vocab, vocab_path)
             print("Saved the vocabulary to '%s'" %vocab_path)
         return vocab

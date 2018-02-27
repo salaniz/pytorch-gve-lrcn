@@ -12,7 +12,6 @@ import torch
 
 if __name__ == '__main__':
 
-
     # Parse arguments
     args = utils.arg_parser.get_args()
     # Print arguments
@@ -92,8 +91,13 @@ if __name__ == '__main__':
             checkpoint_name = "ckpt-e{}".format(trainer.curr_epoch)
             checkpoint_path = os.path.join(job_path, checkpoint_name)
 
+            model.eval()
             result = evaluator.train_epoch()
-            score = val_dataset.eval(result, checkpoint_path)
+            if evaluator.REQ_EVAL:
+                score = val_dataset.eval(result, checkpoint_path)
+            else:
+                score = result
+            model.train()
 
             logger.scalar_summary('score', score, trainer.curr_epoch)
 
