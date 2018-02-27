@@ -39,6 +39,8 @@ def get_args():
                         help="[LRCN] model will not factor word and image input to LSTMs")
     parser.add_argument('--sc-ckpt', type=str, default='data/cub/sentence_classifier_ckpt.pth',
                         help="[GVE] path to checkpoint for pretrained sentence classifier")
+    parser.add_argument('--loss-lambda', type=float, default=0.01,
+                        help="[GVE] weight factor for reinforce loss")
 
     parser.add_argument('--embedding-size', type=int , default=1000,
                         help='dimension of the word embedding')

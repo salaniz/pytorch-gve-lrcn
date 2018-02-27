@@ -32,6 +32,7 @@ class GVETrainer:
             self.num_epochs = args.num_epochs
             self.log_step = args.log_step
             self.curr_epoch = 0
+            self.rl_lambda = args.loss_lambda
 
     def train_epoch(self):
         # Result is list of losses during training
@@ -105,7 +106,7 @@ class GVETrainer:
         rewards = class_pred.gather(1, to_var(labels, self.cuda).view(-1,1))
 
         r_loss = -(log_ps.sum(dim=1) * rewards).sum()
-        loss = 0.01 * r_loss/labels.size(0) + self.criterion(outputs, word_targets)
+        loss = self.rl_lambda * r_loss/labels.size(0) + self.criterion(outputs, word_targets)
         loss.backward()
         #nn.utils.clip_grad_norm(self.params, 10)
         self.optimizer.step()

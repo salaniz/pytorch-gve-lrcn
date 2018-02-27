@@ -20,9 +20,7 @@ if __name__ == '__main__':
     if args.cuda:
         torch.cuda.set_device(args.cuda_device)
 
-    job_string =
-    time.strftime("{}-{}-D%Y-%m-%d-T%H-%M-%S-G{}".format(args.model,
-        args.dataseti, args.cuda_device))
+    job_string = time.strftime("{}-{}-D%Y-%m-%d-T%H-%M-%S-G{}".format(args.model, args.dataset, args.cuda_device))
 
     job_path = os.path.join(args.checkpoint_path, job_string)
 

@@ -14,8 +14,7 @@ do
   echo "Downloading: " $i
   if [ ! -f $i ];
   then
-    echo
-    #wget https://people.eecs.berkeley.edu/~lisa_anne/generating_visual_explanations/data/$i
+    wget https://people.eecs.berkeley.edu/~lisa_anne/generating_visual_explanations/data/$i
   fi
 done
 cd ../..
