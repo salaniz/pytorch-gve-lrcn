@@ -22,6 +22,8 @@ def get_args():
                         help="disable the use of CUDA")
     parser.add_argument('--cuda-device', type=int , default=0,
                         help="specify which GPU to use")
+    parser.add_argument('--torch-seed', type=int,
+                        help="set a torch seed")
 
 
     # Model parameters
@@ -39,6 +41,8 @@ def get_args():
                         help="[LRCN] model will not factor word and image input to LSTMs")
     parser.add_argument('--sc-ckpt', type=str, default='data/cub/sentence_classifier_ckpt.pth',
                         help="[GVE] path to checkpoint for pretrained sentence classifier")
+    parser.add_argument('--weights-ckpt', type=str,
+                        help="[GVE] path to checkpoint for pretrained weights")
     parser.add_argument('--loss-lambda', type=float, default=0.01,
                         help="[GVE] weight factor for reinforce loss")
 
@@ -67,7 +71,10 @@ def get_args():
     arg_vars["train"] = not args.eval
     del arg_vars["eval"]
 
-    arg_vars["torch_seed"] = torch.initial_seed()
+    if args.torch_seed is not None:
+        torch.manual_seed(arg_vars["torch_seed"])
+    else:
+        arg_vars["torch_seed"] = torch.initial_seed()
 
     return args
 

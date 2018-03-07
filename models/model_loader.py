@@ -41,6 +41,9 @@ class ModelLoader:
         gve = GVE(input_size, embedding_size, hidden_size, vocab_size, sc,
                 num_classes)
 
+        if self.args.weights_ckpt:
+            gve.load_state_dict(torch.load(self.args.weights_ckpt))
+
         return gve
 
 

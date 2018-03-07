@@ -94,18 +94,25 @@ class GVETrainer:
         self.model.zero_grad()
         outputs = self.model(image_input, word_inputs, lengths, labels_onehot)
 
+        # Reinforce loss
+        # Sample sentences
         sample_ids, log_ps, lengths = self.model.generate_sentence(image_input, start_word,
                 end_word, labels_onehot, max_sampling_length=50, sample=True)
+        # Order sampled sentences/log_probabilities/labels by sentence length (required by LSTM)
         lengths = lengths.cpu().numpy()
         sort_idx = np.argsort(-lengths)
         lengths = lengths[sort_idx]
         sort_idx = torch.LongTensor(sort_idx).cuda()
+        labels = to_var(labels, self.cuda)
+        labels = labels[sort_idx]
         log_ps = log_ps[sort_idx,:]
-        class_pred = self.model.sentence_classifier(sample_ids[sort_idx,:], lengths)
-        class_pred = F.softmax(class_pred, dim=1)
-        rewards = class_pred.gather(1, to_var(labels, self.cuda).view(-1,1))
+        sample_ids = sample_ids[sort_idx,:]
 
+        class_pred = self.model.sentence_classifier(sample_ids, lengths)
+        class_pred = F.softmax(class_pred, dim=1)
+        rewards = class_pred.gather(1, labels.view(-1,1)).squeeze()
         r_loss = -(log_ps.sum(dim=1) * rewards).sum()
+
         loss = self.rl_lambda * r_loss/labels.size(0) + self.criterion(outputs, word_targets)
         loss.backward()
         #nn.utils.clip_grad_norm(self.params, 10)
