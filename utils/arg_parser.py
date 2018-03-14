@@ -71,6 +71,10 @@ def get_args():
     arg_vars["train"] = not args.eval
     del arg_vars["eval"]
 
+    # GVE currently does not support pretrained models
+    if arg_vars["model"] == "gve":
+        arg_vars["pretrained_model"] = None
+
     if args.torch_seed is not None:
         torch.manual_seed(arg_vars["torch_seed"])
     else:

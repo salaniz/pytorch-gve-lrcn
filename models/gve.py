@@ -10,7 +10,7 @@ from utils.misc import to_var
 class GVE(nn.Module):
     def __init__(self, input_size, word_embed_size, hidden_size,
                  vocab_size, sentence_classifier, num_classes, dropout_prob=0.5):
-        super(GVE, self).__init__()
+        super().__init__()
 
         self.sentence_classifier = sentence_classifier
 

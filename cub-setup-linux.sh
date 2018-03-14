@@ -19,9 +19,12 @@ do
 done
 cd ../..
 
+# Unify naming
+mv data/cub/train_noCub.txt data/cub/train.txt
+
 echo "Preprocessing text data..."
 python utils/cub_preprocess_captions.py --description_type bird \
-                                    --splits data/cub/train_noCub.txt,data/cub/val.txt,data/cub/test.txt
+                                    --splits data/cub/train.txt,data/cub/val.txt,data/cub/test.txt
 
 echo "Downloading cider scores..."
 mkdir -p data/cub/cider_scores 

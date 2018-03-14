@@ -37,14 +37,13 @@ if __name__ == '__main__':
 
     # Data preparation
     print("Preparing Data ...")
-    data_prep = DataPreparation(args.data_path, batch_size=args.batch_size,
-                                num_workers=args.num_workers)
-    data_creator = getattr(data_prep, args.dataset)
-    dataset, data_loader = data_creator(args.pretrained_model,
-            get_split_str(args.train))
-
+    split = get_split_str(args.train)
+    data_prep = DataPreparation(args.dataset, args.data_path)
+    dataset, data_loader = data_prep.get_dataset_and_loader(split, args.pretrained_model,
+            batch_size=args.batch_size, num_workers=args.num_workers)
     if args.train:
-        val_dataset, val_data_loader = data_creator(args.pretrained_model, 'val')
+        val_dataset, val_data_loader = data_prep.get_dataset_and_loader('val',
+                args.pretrained_model, batch_size=args.batch_size, num_workers=args.num_workers)
 
     # TODO: If eval + checkpoint load validation set
 
@@ -61,6 +60,8 @@ if __name__ == '__main__':
         model.load_state_dict(torch.load("/home/stephan/HDD/lrcn-31-1000.pkl",
             map_location=lambda storage, loc: storage), strict=False)
         model.eval()
+
+    val_dataset.set_label_usage(dataset.return_labels)
 
     # Create logger
     logger = Logger(os.path.join(job_path, 'logs'))

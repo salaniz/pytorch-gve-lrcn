@@ -8,7 +8,7 @@ from .pretrained_models import PretrainedModel
 class LRCN(nn.Module):
     def __init__(self, pretrained_model_name, word_embed_size, hidden_size,
                  vocab_size, layers_to_truncate=1, is_factored=True):
-        super(LRCN, self).__init__()
+        super().__init__()
         self.vision_model = PretrainedModel(pretrained_model_name,
                 layers_to_truncate=layers_to_truncate)
         self.word_embed = nn.Embedding(vocab_size, word_embed_size, padding_idx=0)
@@ -67,7 +67,7 @@ class LRCN(nn.Module):
         return outputs
 
     def state_dict(self):
-        state_dict = super(LRCN, self).state_dict()
+        state_dict = super().state_dict()
         for key in self.vision_model.state_dict().keys():
             del state_dict['vision_model.{}'.format(key)]
         return state_dict

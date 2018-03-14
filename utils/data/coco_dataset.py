@@ -32,7 +32,7 @@ class CocoDataset(data.Dataset):
     tokens_file_name = 'coco_tokens_{}.pkl'
     #tokens_train_file_name = 'coco_tokens_train.pkl'
     #tokens_val_file_name = 'coco_tokens_val.pkl'
-    labels_path = 'annotations/instances_{}2014.json'
+    class_labels_path = 'annotations/instances_{}2014.json'
 
     # Available data splits (must contain 'train')
     DATA_SPLITS = set(['train', 'val'])
@@ -64,7 +64,7 @@ class CocoDataset(data.Dataset):
         self.image_path = os.path.join(self.root, cls.image_path.format(split))
         self.tokens_path = os.path.join(self.root, cls.tokens_file_name.format(split))
         self.vocab_path = os.path.join(self.root, cls.vocab_file_name)
-        self.labels_path = os.path.join(self.root, cls.labels_path.format(split))
+        self.labels_path = os.path.join(self.root, cls.class_labels_path.format(split))
 
         if tokenized_captions is None:
             tokenized_captions = cls.get_tokenized_captions(self.caption_path,
@@ -100,7 +100,7 @@ class CocoDataset(data.Dataset):
             raise ValueError("Chosen base for COCO IDs is not implemented")
 
         #self.load_class_labels(self.labels_path)
-        self.return_label = False
+        self.return_labels = False
 
         self.vocab = vocab
         self.tokens = tokenized_captions
@@ -108,7 +108,7 @@ class CocoDataset(data.Dataset):
 
 
     def set_label_usage(self, return_labels):
-        if return_labels and self.class_labels is None:
+        if return_labels and not hasattr(self, 'class_labels'):
             self.load_class_labels(self.labels_path)
         self.return_labels = return_labels
 
@@ -151,6 +151,20 @@ class CocoDataset(data.Dataset):
         self.num_classes = len(id_to_label)
 
 
+    def get_image(self, img_id):
+        path = self.coco.loadImgs(img_id)[0]['file_name']
+        image = Image.open(os.path.join(self.image_path, path)).convert('RGB')
+        if self.transform is not None:
+            image = self.transform(image)
+        return image
+
+    def get_class_label(self, img_id):
+        img_labels = self.class_labels[img_id]
+        rand_idx = np.random.randint(len(img_labels))
+        class_label = torch.LongTensor([int(img_labels[rand_idx])])
+        return class_label
+
+
     def __getitem__(self, index):
         """Returns one data pair (image and caption)."""
         coco = self.coco
@@ -168,17 +182,11 @@ class CocoDataset(data.Dataset):
             ann_id = img_anns[rand_idx]['id']
 
 
-        if self.return_label:
-            img_labels = self.class_labels[img_id]
-            rand_idx = np.random.randint(len(img_labels))
-            class_label = torch.LongTensor([int(img_labels[rand_idx])])
+        if self.return_labels:
+            class_label = self.get_class_label(img_id)
 
         tokens = self.tokens[ann_id]
-        path = coco.loadImgs(img_id)[0]['file_name']
-
-        image = Image.open(os.path.join(self.image_path, path)).convert('RGB')
-        if self.transform is not None:
-            image = self.transform(image)
+        image = self.get_image(img_id)
 
         """
         # Convert caption (string) to word ids.
@@ -189,7 +197,7 @@ class CocoDataset(data.Dataset):
         caption.extend([vocab(token) for token in tokens])
         caption.append(vocab(vocab.end_token))
         target = torch.Tensor(caption)
-        if self.return_label:
+        if self.return_labels:
             return image, target, base_id, class_label
         else:
             return image, target, base_id
@@ -232,11 +240,13 @@ class CocoDataset(data.Dataset):
         """
         # Sort a data list by caption length (descending order).
         data.sort(key=lambda x: len(x[1]), reverse=True)
-        if self.return_label:
-            images, captions, ids, labels = zip(*data)
-            labels = torch.cat(labels, 0)
+        images, captions, ids, *labels = zip(*data)
+
+        if len(labels) > 0:
+            return_labels = True
+            labels = torch.cat(labels[0], 0)
         else:
-            images, captions, ids = zip(*data)
+            return_labels = False
 
         # Merge images (from tuple of 3D tensor to 4D tensor).
         images = torch.stack(images, 0)
@@ -250,7 +260,7 @@ class CocoDataset(data.Dataset):
             word_inputs[i, :end] = cap[:-1]
             word_targets[i, :end] = cap[1:]
 
-        if self.return_labels:
+        if return_labels:
             return images, word_inputs, word_targets, lengths, ids, labels
         else:
             return images, word_inputs, word_targets, lengths, ids

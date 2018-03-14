@@ -11,64 +11,44 @@ from .cub_dataset import CubDataset
 from utils.transform import get_transform
 
 class DataPreparation:
-    def __init__(self, data_path='./data', batch_size=128, num_workers=4):
-        self.data_path = data_path
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-
-    def coco_cub_preparation(self, vision_model, split='train', vocab=None,
-            tokens=None, dataset_name='coco'):
-
+    def __init__(self, dataset_name='coco', data_path='./data'):
         if dataset_name == 'coco':
-            Dataset = CocoDataset
-            transform = get_transform(vision_model, split=='train')
+            self.DatasetClass = CocoDataset
         elif dataset_name == 'cub':
-            Dataset = CubDataset
-            transform = None
+            self.DatasetClass = CubDataset
+        self.data_path = os.path.join(data_path, self.DatasetClass.dataset_prefix)
 
-        data_path = os.path.join(self.data_path, Dataset.dataset_prefix)
+    def get_dataset(self, split='train', vision_model=None, vocab=None,
+            tokens=None):
+        transform = get_transform(vision_model, split)
+        dataset = self.DatasetClass(root=self.data_path,
+                                    split=split,
+                                    vocab=vocab,
+                                    tokenized_captions=tokens,
+                                    transform=transform)
+        self.dataset = dataset
+        return self.dataset
 
-        dataset, loader = self.prepare_coco_cub_loader(Dataset,
-                                                       data_path,
-                                                       split,
-                                                       vocab,
-                                                       tokens,
-                                                       transform)
+    def get_loader(self, dataset, batch_size=128, num_workers=4):
+        assert isinstance(dataset, self.DatasetClass)
 
-        return dataset, loader
-
-    def coco(self, vision_model, split='train', vocab=None, tokens=None):
-        return self.coco_cub_preparation(vision_model, split, vocab=vocab,
-                tokens=tokens, dataset_name='coco')
-
-    def cub(self, vision_model, split='train', vocab=None, tokens=None):
-        return self.coco_cub_preparation(vision_model, split, vocab=tokens,
-                tokens=tokens, dataset_name='cub')
-
-    def prepare_coco_cub_loader(self, Dataset, data_path, split, vocab, tokens,
-            transform):
-        """Returns torch.utils.data.DataLoader for custom coco dataset."""
-        # COCO caption dataset
-
-        coco_dataset = Dataset(root=data_path,
-                                   split=split,
-                                   vocab=vocab,
-                                   tokenized_captions=tokens,
-                                   transform=transform)
-
-        # Data loader for COCO dataset
-        # This will return (images, captions, lengths) for every iteration.
-        # images: tensor of shape (batch_size, 3, 224, 224).
-        # captions: tensor of shape (batch_size, padded_length).
-        # lengths: list indicating valid length for each caption. length is (batch_size).
-        if split == 'train':
+        if dataset.split == 'train':
             shuffle = True
         else:
             shuffle = False
-        coco_loader = torch.utils.data.DataLoader(dataset=coco_dataset,
-                                                  batch_size=self.batch_size,
-                                                  shuffle=shuffle,
-                                                  num_workers=self.num_workers,
-                                                  collate_fn=Dataset.collate_fn)
 
-        return coco_dataset, coco_loader
+        data_loader = torch.utils.data.DataLoader(dataset=dataset,
+                                                  batch_size=batch_size,
+                                                  shuffle=shuffle,
+                                                  num_workers=num_workers,
+                                                  collate_fn=dataset.collate_fn)
+
+        return data_loader
+
+
+    def get_dataset_and_loader(self, split='train', vision_model=None,
+            vocab=None, tokens=None, batch_size=128, num_workers=4):
+        dataset = self.get_dataset(split, vision_model, vocab, tokens)
+        loader = self.get_loader(dataset, batch_size, num_workers)
+        return dataset, loader
+
