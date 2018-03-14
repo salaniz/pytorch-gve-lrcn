@@ -21,17 +21,11 @@ class CocoDataset(data.Dataset):
 
     """COCO Custom Dataset compatible with torch.utils.data.DataLoader."""
 
-    dataset_prefix = ''
+    dataset_prefix = 'coco'
     image_path = '{}2014'
-    #image_train_path = 'train2014'
-    #image_val_path = 'val2014'
     caption_path = 'annotations/captions_{}2014.json'
-    #caption_train_path = 'annotations/captions_train2014.json'
-    #caption_val_path = 'annotations/captions_val2014.json'
     vocab_file_name = 'coco_vocab.pkl'
     tokens_file_name = 'coco_tokens_{}.pkl'
-    #tokens_train_file_name = 'coco_tokens_train.pkl'
-    #tokens_val_file_name = 'coco_tokens_val.pkl'
     class_labels_path = 'annotations/instances_{}2014.json'
 
     # Available data splits (must contain 'train')
