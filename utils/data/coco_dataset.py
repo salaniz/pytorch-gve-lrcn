@@ -22,13 +22,20 @@ class CocoDataset(data.Dataset):
     """COCO Custom Dataset compatible with torch.utils.data.DataLoader."""
 
     dataset_prefix = ''
-    image_train_path = 'train2014'
-    image_val_path = 'val2014'
-    caption_train_path = 'annotations/captions_train2014.json'
-    caption_val_path = 'annotations/captions_val2014.json'
+    image_path = '{}2014'
+    #image_train_path = 'train2014'
+    #image_val_path = 'val2014'
+    caption_path = 'annotations/captions_{}2014.json'
+    #caption_train_path = 'annotations/captions_train2014.json'
+    #caption_val_path = 'annotations/captions_val2014.json'
     vocab_file_name = 'coco_vocab.pkl'
-    tokens_train_file_name = 'coco_tokens_train.pkl'
-    tokens_val_file_name = 'coco_tokens_val.pkl'
+    tokens_file_name = 'coco_tokens_{}.pkl'
+    #tokens_train_file_name = 'coco_tokens_train.pkl'
+    #tokens_val_file_name = 'coco_tokens_val.pkl'
+    labels_path = 'annotations/instances_{}2014.json'
+
+    # Available data splits (must contain 'train')
+    DATA_SPLITS = set(['train', 'val'])
 
     # punctuations to be removed from the sentences
     PUNCTUATIONS = ["''", "'", "``", "`", "(", ")", "{", "}",
@@ -39,33 +46,109 @@ class CocoDataset(data.Dataset):
         IMAGES = 1
 
 
-    def __init__(self, root, json, vocab, tokenized_captions, transform=None,
-            ids_based_on=None):
-        """Set the path for images, captions and vocabulary wrapper.
-
+    def __init__(self, root, split='train', vocab=None, tokenized_captions=None,
+            transform=None):
+        """
         Args:
-            root: image directory.
-            json: coco annotation file path.
-            vocab: vocabulary wrapper.
-            transform: image transformer.
+            root: directory of coco data
+            split: one of ['train', 'val']
         """
 
-        if ids_based_on is None:
-            ids_based_on = self.ID_BASE.CAPTIONS
-        assert isinstance(ids_based_on, self.ID_BASE)
-        self.ids_based_on = ids_based_on
+        cls = self.__class__
+        assert split in cls.DATA_SPLITS
+        self.split = split
 
         self.root = root
-        self.coco = COCO(json)
-        if ids_based_on == self.ID_BASE.CAPTIONS:
+
+        self.caption_path = os.path.join(self.root, cls.caption_path.format(split))
+        self.image_path = os.path.join(self.root, cls.image_path.format(split))
+        self.tokens_path = os.path.join(self.root, cls.tokens_file_name.format(split))
+        self.vocab_path = os.path.join(self.root, cls.vocab_file_name)
+        self.labels_path = os.path.join(self.root, cls.labels_path.format(split))
+
+        if tokenized_captions is None:
+            tokenized_captions = cls.get_tokenized_captions(self.caption_path,
+                    self.tokens_path)
+
+        if vocab is None:
+            if split != 'train':
+                cap_path_train = os.path.join(self.root, cls.caption_path.format('train'))
+                tokens_path_train = os.path.join(self.root, cls.tokens_file_name.format('train'))
+                tokens_train = cls.get_tokenized_captions(cap_path_train,
+                        tokens_path_train)
+            else:
+                cap_path_train = self.caption_path
+                tokens_train = tokenized_captions
+            vocab = cls.get_vocabulary(self.vocab_path, cap_path_train, tokens_train)
+
+        if split == 'train':
+            self.ids_based_on = cls.ID_BASE.CAPTIONS
+        else:
+            self.ids_based_on = cls.ID_BASE.IMAGES
+
+        #images_path = os.path.join(data_path, images_path)
+        #cap_path = os.path.join(data_path, cap_path)
+        # TODO: separate
+        #self.root = os.path.join(root, self.image_path)
+
+        self.coco = COCO(self.caption_path)
+        if self.ids_based_on == self.ID_BASE.CAPTIONS:
             self.ids = list(self.coco.anns.keys())
-        elif ids_based_on == self.ID_BASE.IMAGES:
+        elif self.ids_based_on == self.ID_BASE.IMAGES:
             self.ids = list(self.coco.imgs.keys())
         else:
             raise ValueError("Chosen base for COCO IDs is not implemented")
+
+        #self.load_class_labels(self.labels_path)
+        self.return_label = False
+
         self.vocab = vocab
         self.tokens = tokenized_captions
         self.transform = transform
+
+
+    def set_label_usage(self, return_labels):
+        if return_labels and self.class_labels is None:
+            self.load_class_labels(self.labels_path)
+        self.return_labels = return_labels
+
+
+    def load_class_labels(self, category_path, use_supercategories=False):
+        coco = COCO(category_path)
+        id_to_label = {}
+        class_labels = {}
+        i = 0
+        sam = 0
+        for key, info in coco.cats.items():
+            if use_supercategories:
+                cat = info["supercategory"]
+            else:
+                cat = key
+
+            if cat not in id_to_label:
+                id_to_label[cat] = i
+                i += 1
+
+            label_id = id_to_label[cat]
+            for img in coco.catToImgs[key]:
+                if img not in class_labels:
+                    class_labels[img] = [label_id]
+                elif label_id not in class_labels[img]:
+                    class_labels[img].append(label_id)
+
+            sam += len(coco.catToImgs[key])
+
+        # Add label for all images that have no label
+        l = 'not labeled'
+        for img in self.coco.imgs.keys():
+            if img not in class_labels:
+                if l not in id_to_label:
+                    id_to_label[l] = i
+                    i += 1
+                class_labels[img] = [id_to_label[l]]
+
+        self.class_labels = class_labels
+        self.num_classes = len(id_to_label)
 
 
     def __getitem__(self, index):
@@ -84,10 +167,16 @@ class CocoDataset(data.Dataset):
             rand_idx = np.random.randint(len(img_anns))
             ann_id = img_anns[rand_idx]['id']
 
+
+        if self.return_label:
+            img_labels = self.class_labels[img_id]
+            rand_idx = np.random.randint(len(img_labels))
+            class_label = torch.LongTensor([int(img_labels[rand_idx])])
+
         tokens = self.tokens[ann_id]
         path = coco.loadImgs(img_id)[0]['file_name']
 
-        image = Image.open(os.path.join(self.root, path)).convert('RGB')
+        image = Image.open(os.path.join(self.image_path, path)).convert('RGB')
         if self.transform is not None:
             image = self.transform(image)
 
@@ -100,7 +189,10 @@ class CocoDataset(data.Dataset):
         caption.extend([vocab(token) for token in tokens])
         caption.append(vocab(vocab.end_token))
         target = torch.Tensor(caption)
-        return image, target, base_id
+        if self.return_label:
+            return image, target, base_id, class_label
+        else:
+            return image, target, base_id
 
 
     def __len__(self):
@@ -140,7 +232,11 @@ class CocoDataset(data.Dataset):
         """
         # Sort a data list by caption length (descending order).
         data.sort(key=lambda x: len(x[1]), reverse=True)
-        images, captions, ids = zip(*data)
+        if self.return_label:
+            images, captions, ids, labels = zip(*data)
+            labels = torch.cat(labels, 0)
+        else:
+            images, captions, ids = zip(*data)
 
         # Merge images (from tuple of 3D tensor to 4D tensor).
         images = torch.stack(images, 0)
@@ -154,11 +250,15 @@ class CocoDataset(data.Dataset):
             word_inputs[i, :end] = cap[:-1]
             word_targets[i, :end] = cap[1:]
 
-        return images, word_inputs, word_targets, lengths, ids
+        if self.return_labels:
+            return images, word_inputs, word_targets, lengths, ids, labels
+        else:
+            return images, word_inputs, word_targets, lengths, ids
 
 
-    @staticmethod
-    def tokenize(caption):
+
+    @classmethod
+    def tokenize(cls, caption):
         """
         return [word for word in
                 nltk.tokenize.word_tokenize(str(caption).rstrip('.').lower()) if word not
@@ -168,40 +268,30 @@ class CocoDataset(data.Dataset):
         return t.tokenize_caption(caption)
 
 
-    @staticmethod
-    def build_tokenized_captions(json):
+    @classmethod
+    def build_tokenized_captions(cls, json):
         coco = COCO(json)
         t = PTBTokenizer()
         tokenized_captions = t.tokenize(coco.anns)
         return tokenized_captions
 
 
-    @staticmethod
-    def get_tokenized_captions(data_path, train=True):
+    @classmethod
+    def get_tokenized_captions(cls, caption_path, target_path):
         # Load or construct tokenized captions
-        if train:
-            tokens_name = CocoDataset.tokens_train_file_name
-        else:
-            tokens_name = CocoDataset.tokens_val_file_name
-        tokens_path = os.path.join(data_path, tokens_name)
-        if os.path.exists(tokens_path):
-            with open(tokens_path, 'rb') as f:
+        if os.path.exists(target_path):
+            with open(target_path, 'rb') as f:
                 tokens = pickle.load(f)
         else:
-            if train:
-                caption_path = CocoDataset.caption_train_path
-            else:
-                caption_path = CocoDataset.caption_val_path
-            path = os.path.join(data_path, caption_path)
-            tokens = CocoDataset.build_tokenized_captions(path)
-            with open(tokens_path, 'wb') as f:
+            tokens = cls.build_tokenized_captions(caption_path)
+            with open(target_path, 'wb') as f:
                 pickle.dump(tokens, f, protocol=pickle.HIGHEST_PROTOCOL)
-            print("Saved the tokenized captions to '%s'" %tokens_path)
+            print("Saved the tokenized captions to '{}'".format(target_path))
         return tokens
 
 
-    @staticmethod
-    def build_vocab(json, tokenized_captions, threshold):
+    @classmethod
+    def build_vocab(cls, json, tokenized_captions, threshold):
         print("Building vocabulary")
         coco = COCO(json)
         counter = Counter()
@@ -228,15 +318,13 @@ class CocoDataset(data.Dataset):
         return vocab
 
 
-    @staticmethod
-    def get_vocabulary(data_path, tokenized_captions, threshold=1):
+    @classmethod
+    def get_vocabulary(cls, vocab_path, captions_path, tokenized_captions, threshold=1):
         # Load or construct vocabulary
-        vocab_path = os.path.join(data_path, CocoDataset.vocab_file_name)
         if os.path.exists(vocab_path):
             vocab = Vocabulary.load(vocab_path)
         else:
-            path = os.path.join(data_path, CocoDataset.caption_train_path)
-            vocab = CocoDataset.build_vocab(path, tokenized_captions, threshold)
+            vocab = cls.build_vocab(captions_path, tokenized_captions, threshold)
             Vocabulary.save(vocab, vocab_path)
             print("Saved the vocabulary to '%s'" %vocab_path)
         return vocab

@@ -25,6 +25,8 @@ class ModelLoader:
         return lrcn
 
     def gve(self):
+        # Make sure dataset returns labels
+        self.dataset.set_label_usage(True)
         # GVE arguments
         embedding_size = self.args.embedding_size
         hidden_size = self.args.hidden_size
@@ -49,6 +51,8 @@ class ModelLoader:
 
 
     def sc(self):
+        # Make sure dataset returns labels
+        self.dataset.set_label_usage(True)
         # Sentence classifier arguments
         embedding_size = self.args.embedding_size
         hidden_size = self.args.hidden_size

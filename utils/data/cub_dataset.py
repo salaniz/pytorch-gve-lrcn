@@ -26,11 +26,17 @@ class CubDataset(data.Dataset):
     class_labels_path = 'CUB_label_dict.p'
     image_train_path = ''
     image_val_path = ''
+    image_test_path = ''
     caption_train_path = 'descriptions_bird.train_noCub.fg.json'
     caption_val_path = 'descriptions_bird.val.fg.json'
+    caption_test_path = 'descriptions_bird.test.fg.json'
     vocab_file_name = 'cub_vocab.pkl'
     tokens_train_file_name = 'cub_tokens_train.pkl'
     tokens_val_file_name = 'cub_tokens_val.pkl'
+    tokens_test_file_name = 'cub_tokens_test.pkl'
+
+    # Available data splits (must contain 'train')
+    DATA_SPLITS = set(['train', 'val', 'test'])
 
     # punctuations to be removed from the sentences
     PUNCTUATIONS = ["''", "'", "``", "`", "(", ")", "{", "}",
