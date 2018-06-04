@@ -37,10 +37,12 @@ if __name__ == '__main__':
 
     # Data preparation
     print("Preparing Data ...")
-    split = get_split_str(args.train)
+    split = get_split_str(args.train, bool(args.eval_ckpt))
+    print(split)
     data_prep = DataPreparation(args.dataset, args.data_path)
     dataset, data_loader = data_prep.get_dataset_and_loader(split, args.pretrained_model,
             batch_size=args.batch_size, num_workers=args.num_workers)
+    print(len(dataset))
     if args.train:
         val_dataset, val_data_loader = data_prep.get_dataset_and_loader('val',
                 args.pretrained_model, batch_size=args.batch_size, num_workers=args.num_workers)
@@ -57,11 +59,11 @@ if __name__ == '__main__':
     # TODO: Remove and handle with checkpoints
     if not args.train:
         print("Loading Model Weights ...")
-        model.load_state_dict(torch.load("/home/stephan/HDD/lrcn-31-1000.pkl",
-            map_location=lambda storage, loc: storage), strict=False)
+        model.load_state_dict(torch.load(args.eval_ckpt))
         model.eval()
 
-    val_dataset.set_label_usage(dataset.return_labels)
+    if args.train:
+        val_dataset.set_label_usage(dataset.return_labels)
 
     # Create logger
     logger = Logger(os.path.join(job_path, 'logs'))
@@ -123,7 +125,12 @@ if __name__ == '__main__':
 
         else:
             result = trainer.train_epoch()
+            if trainer.REQ_EVAL:
+                score = dataset.eval(result, "results")
 
+
+    """
     if not args.train:
         with open('results.json', 'w') as f:
             json.dump(result, f)
+    """
