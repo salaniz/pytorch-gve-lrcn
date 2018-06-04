@@ -69,6 +69,7 @@ def get_args():
     del arg_vars["not_factored"]
 
     arg_vars["train"] = not args.eval
+    arg_vars["eval_ckpt"] = args.eval
     del arg_vars["eval"]
 
     # GVE currently does not support pretrained models
