@@ -1,0 +1,6 @@
+Cython
+matplotlib
+numpy
+pycocotools
+scipy
+tensorflow
