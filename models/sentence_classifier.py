@@ -5,7 +5,6 @@ from torch.nn.utils.rnn import pack_padded_sequence
 from torch.nn.utils.rnn import pad_packed_sequence
 
 from .pretrained_models import PretrainedModel
-from utils.misc import to_var
 
 class SentenceClassifier(nn.Module):
     def __init__(self, word_embed_size, hidden_size, vocab_size, num_classes,
@@ -41,7 +40,7 @@ class SentenceClassifier(nn.Module):
         # Extract the outputs for the last timestep of each example
         idx = (torch.LongTensor(lengths) - 1).view(-1, 1).expand(len(lengths), hiddens.size(2))
         idx = idx.unsqueeze(1)
-        idx = to_var(idx, hiddens.is_cuda)
+        idx = idx.to(hiddens.device)
 
         # Shape: (batch_size, hidden_size)
         last_hiddens = hiddens.gather(1, idx).squeeze(1)

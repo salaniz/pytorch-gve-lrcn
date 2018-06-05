@@ -5,7 +5,6 @@ from torch.nn.utils.rnn import pack_padded_sequence
 from torch.nn.utils.rnn import pad_packed_sequence
 from torch.distributions import Categorical
 
-from utils.misc import to_var
 from .pretrained_models import PretrainedModel
 
 class LRCN(nn.Module):
@@ -132,7 +131,7 @@ class LRCN(nn.Module):
             if sample:
                 predicted, log_p = self.sample(outputs)
                 active_batches = (~reached_end)
-                log_p *= to_var(active_batches.float(), log_p.is_cuda)
+                log_p *= active_batches.float().to(log_p.device)
                 log_probabilities.append(log_p.unsqueeze(1))
                 lengths += active_batches.long()
             else:

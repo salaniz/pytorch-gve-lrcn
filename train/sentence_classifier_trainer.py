@@ -5,22 +5,19 @@ import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence
 import numpy as np
 
-from utils.misc import to_var
-
 class SCTrainer:
 
     REQ_EVAL = False
 
-    def __init__(self, args, model, dataset, data_loader, logger, checkpoint=None):
+    def __init__(self, args, model, dataset, data_loader, logger, device, checkpoint=None):
         self.model = model
         self.dataset = dataset
         self.data_loader = data_loader
-        self.cuda = args.cuda
         self.train = args.train
         self.logger = logger
+        self.device = device
 
-        if self.cuda:
-            model.cuda()
+        model.to(self.device)
 
         # TODO: Implement checkpoint recovery
         if checkpoint is None:
@@ -40,19 +37,18 @@ class SCTrainer:
         for i, (images, word_inputs, word_targets, lengths, ids, labels) in enumerate(self.data_loader):
             # Prepare mini-batch dataset
             if self.train:
-                word_targets = to_var(word_targets, self.cuda)
-                labels = to_var(labels, self.cuda)
+                word_targets = word_targetst
+                labels = labels.to(self.device)
 
                 loss = self.train_step(word_targets, labels, lengths)
-                result.append(loss.data[0])
+                result.append(loss.data.item())
 
                 step = self.curr_epoch * self.total_steps + i + 1
-                self.logger.scalar_summary('batch_loss', loss.data[0], step)
+                self.logger.scalar_summary('batch_loss', loss.data.item(), step)
 
             else:
-                word_targets= to_var(word_targets, self.cuda)
-                if word_targets.is_cuda:
-                    labels = labels.cuda()
+                word_targets= word_targets.to(self.device)
+                labels = labels.to(self.device)
                 score = self.eval_step(word_targets, labels, lengths)
                 result.append(score)
 
@@ -62,8 +58,8 @@ class SCTrainer:
                 print("Epoch [{}/{}], Step [{}/{}]".format(self.curr_epoch,
                     self.num_epochs, i, self.total_steps), end='')
                 if self.train:
-                    print(", Loss: {:.4f}, Perplexity: {:5.4f}".format(loss.data[0],
-                                np.exp(loss.data[0])), end='')
+                    print(", Loss: {:.4f}, Perplexity: {:5.4f}".format(loss.data.item(),
+                                np.exp(loss.data.item())), end='')
                 print()
 
 

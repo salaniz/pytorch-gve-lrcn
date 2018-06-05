@@ -6,22 +6,21 @@ import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence
 import numpy as np
 
-from utils.misc import to_var
 from .lrcn_trainer import LRCNTrainer
 
 class GVETrainer(LRCNTrainer):
 
     REQ_EVAL = True
 
-    def __init__(self, args, model, dataset, data_loader, logger, checkpoint=None):
-        super().__init__(args, model, dataset, data_loader, logger, checkpoint)
+    def __init__(self, args, model, dataset, data_loader, logger, device, checkpoint=None):
+        super().__init__(args, model, dataset, data_loader, logger, device, checkpoint)
         self.rl_lambda = args.loss_lambda
 
     def train_step(self, image_input, word_inputs, word_targets, lengths,
             labels):
         # Forward, Backward and Optimize
         labels_onehot = self.model.convert_onehot(labels)
-        labels_onehot = to_var(labels_onehot, self.cuda)
+        labels_onehot = labels_onehot.to(self.device)
         self.model.zero_grad()
         outputs = self.model(image_input, word_inputs, lengths, labels,
                 labels_onehot=labels_onehot)
@@ -34,9 +33,9 @@ class GVETrainer(LRCNTrainer):
         lengths = lengths.cpu().numpy()
         sort_idx = np.argsort(-lengths)
         lengths = lengths[sort_idx]
-        sort_idx = torch.LongTensor(sort_idx).cuda()
+        sort_idx = torch.tensor(sort_idx, device=self.device, dtype=torch.long)
         labels = labels[sort_idx]
-        labels = to_var(labels, self.cuda)
+        labels = labels.to(self.device)
         log_ps = log_ps[sort_idx,:]
         sample_ids = sample_ids[sort_idx,:]
 
