@@ -35,7 +35,7 @@ class ModelLoader:
         num_classes = self.dataset.num_classes
 
         sc = self.sc()
-        sc.load_state_dict(torch.load(self.args.sc_ckpt))
+        # sc.load_state_dict(torch.load(self.args.sc_ckpt))
         for param in sc.parameters():
             param.requires_grad = False
         sc.eval()

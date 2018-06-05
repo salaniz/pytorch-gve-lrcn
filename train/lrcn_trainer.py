@@ -44,10 +44,10 @@ class LRCNTrainer:
                 word_targets = pack_padded_sequence(word_targets, lengths, batch_first=True)[0]
 
                 loss = self.train_step(images, word_inputs, word_targets, lengths)
-                result.append(loss.data[0])
+                result.append(loss.data.item())
 
                 step = self.curr_epoch * self.total_steps + i + 1
-                self.logger.scalar_summary('batch_loss', loss.data[0], step)
+                self.logger.scalar_summary('batch_loss', loss.data.item(), step)
 
             else:
                 generated_captions = self.eval_step(images, ids)
@@ -59,8 +59,8 @@ class LRCNTrainer:
                 print("Epoch [{}/{}], Step [{}/{}]".format(self.curr_epoch,
                     self.num_epochs, i, self.total_steps), end='')
                 if self.train:
-                    print(", Loss: {:.4f}, Perplexity: {:5.4f}".format(loss.data[0],
-                                np.exp(loss.data[0])), end='')
+                    print(", Loss: {:.4f}, Perplexity: {:5.4f}".format(loss.data.item(),
+                                np.exp(loss.data.item())), end='')
                 print()
 
 
