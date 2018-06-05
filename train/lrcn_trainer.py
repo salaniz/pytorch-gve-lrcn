@@ -6,6 +6,9 @@ from torch.nn.utils.rnn import pack_padded_sequence
 import numpy as np
 
 class LRCNTrainer:
+
+    REQ_EVAL = True
+
     def __init__(self, args, model, dataset, data_loader, logger, device, checkpoint=None):
         self.model = model
         self.dataset = dataset
@@ -80,7 +83,7 @@ class LRCNTrainer:
 
 
     def train_step(self, image_input, word_inputs, word_targets, lengths,
-            **kwargs):
+            *args):
         # Forward, Backward and Optimize
         self.model.zero_grad()
         outputs = self.model(image_input, word_inputs, lengths)
@@ -92,11 +95,11 @@ class LRCNTrainer:
         return loss
 
 
-    def eval_step(self, image_input, ids, **kwargs):
+    def eval_step(self, image_input, ids, *args):
         # TODO: max_sampling_length
         vocab = self.dataset.vocab
         generated_captions = []
-        outputs = self.model.generate_sentence(image_input, self.start_word, self.end_word, **kwargs)
+        outputs = self.model.generate_sentence(image_input, self.start_word, self.end_word, *args)
         for out_idx in range(len(outputs)):
             sentence = []
             for w in outputs[out_idx]:

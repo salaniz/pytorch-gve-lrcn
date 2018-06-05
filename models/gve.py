@@ -29,7 +29,8 @@ class GVE(LRCN):
             labels_onehot = self.convert_onehot(labels)
 
         def append_labels(labels_to_append, image_features):
-            return torch.cat((image_features, labels_to_append), 1)
+            return torch.cat((image_features,
+                labels_to_append.to(image_features.device)), 1)
 
         return partial(append_labels, labels_onehot)
 
