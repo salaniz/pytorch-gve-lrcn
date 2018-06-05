@@ -5,19 +5,16 @@ import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence
 import numpy as np
 
-from utils.misc import to_var
-
 class LRCNTrainer:
-    def __init__(self, args, model, dataset, data_loader, logger, checkpoint=None):
+    def __init__(self, args, model, dataset, data_loader, logger, device, checkpoint=None):
         self.model = model
         self.dataset = dataset
         self.data_loader = data_loader
-        self.cuda = args.cuda
         self.train = args.train
         self.logger = logger
+        self.device = device
 
-        if self.cuda:
-            model.cuda()
+        model.to(self.device)
 
         # TODO: Implement checkpoint recovery
         if checkpoint is None:
@@ -30,9 +27,11 @@ class LRCNTrainer:
             self.curr_epoch = 0
 
         vocab = self.dataset.vocab
-        start_word = to_var(torch.LongTensor([vocab(vocab.start_token)]), self.cuda)
+        start_word = torch.tensor([vocab(vocab.start_token)],
+                device=self.device, dtype=torch.long)
         self.start_word = start_word.unsqueeze(0)
-        end_word = to_var(torch.LongTensor([vocab(vocab.end_token)]), self.cuda)
+        end_word = torch.tensor([vocab(vocab.end_token)], device=device,
+                dtype=torch.long)
         self.end_word = end_word.unsqueeze(0)
 
 
@@ -43,19 +42,19 @@ class LRCNTrainer:
 
         for i, (image_input, word_inputs, word_targets, lengths, ids, *excess) in enumerate(self.data_loader):
             # Prepare mini-batch dataset
-            image_input = to_var(image_input, self.cuda)
+            image_input = image_input.to(self.device)
 
             if self.train:
-                word_inputs = to_var(word_inputs, self.cuda)
-                word_targets = to_var(word_targets, self.cuda)
+                word_inputs = word_inputs.to(self.device)
+                word_targets = word_targets.to(self.device)
                 word_targets = pack_padded_sequence(word_targets, lengths, batch_first=True)[0]
 
                 loss = self.train_step(image_input, word_inputs, word_targets,
                         lengths, *excess)
-                result.append(loss.data[0])
+                result.append(loss.data.item())
 
                 step = self.curr_epoch * self.total_steps + i + 1
-                self.logger.scalar_summary('batch_loss', loss.data[0], step)
+                self.logger.scalar_summary('batch_loss', loss.data.item(), step)
 
             else:
                 generated_captions = self.eval_step(image_input, ids, *excess)
@@ -67,8 +66,8 @@ class LRCNTrainer:
                 print("Epoch [{}/{}], Step [{}/{}]".format(self.curr_epoch,
                     self.num_epochs, i, self.total_steps), end='')
                 if self.train:
-                    print(", Loss: {:.4f}, Perplexity: {:5.4f}".format(loss.data[0],
-                                np.exp(loss.data[0])), end='')
+                    print(", Loss: {:.4f}, Perplexity: {:5.4f}".format(loss.data.item(),
+                        np.exp(loss.data.item())), end='')
                 print()
 
 
@@ -87,7 +86,7 @@ class LRCNTrainer:
         outputs = self.model(image_input, word_inputs, lengths)
         loss = self.criterion(outputs, word_targets)
         loss.backward()
-        nn.utils.clip_grad_norm(self.params, 10)
+        #nn.utils.clip_grad_norm(self.params, 10)
         self.optimizer.step()
 
         return loss
@@ -101,7 +100,7 @@ class LRCNTrainer:
         for out_idx in range(len(outputs)):
             sentence = []
             for w in outputs[out_idx]:
-                word = vocab.get_word_from_idx(w.data[0])
+                word = vocab.get_word_from_idx(w.data.item())
                 if word != vocab.end_token:
                     sentence.append(word)
                 else:

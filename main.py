@@ -19,8 +19,8 @@ if __name__ == '__main__':
     # Print arguments
     utils.arg_parser.print_args(args)
 
-    if args.cuda:
-        torch.cuda.set_device(args.cuda_device)
+    device = torch.device('cuda:{}'.format(args.cuda_device) if
+            torch.cuda.is_available() and not args.disable_cuda else 'cpu')
 
     job_string = time.strftime("{}-{}-D%Y-%m-%d-T%H-%M-%S-G{}".format(args.model, args.dataset, args.cuda_device))
 
@@ -38,11 +38,9 @@ if __name__ == '__main__':
     # Data preparation
     print("Preparing Data ...")
     split = get_split_str(args.train, bool(args.eval_ckpt))
-    print(split)
     data_prep = DataPreparation(args.dataset, args.data_path)
     dataset, data_loader = data_prep.get_dataset_and_loader(split, args.pretrained_model,
             batch_size=args.batch_size, num_workers=args.num_workers)
-    print(len(dataset))
     if args.train:
         val_dataset, val_data_loader = data_prep.get_dataset_and_loader('val',
                 args.pretrained_model, batch_size=args.batch_size, num_workers=args.num_workers)
@@ -70,10 +68,10 @@ if __name__ == '__main__':
 
     # Get trainer
     trainer_creator = getattr(TrainerLoader, args.model)
-    trainer = trainer_creator(args, model, dataset, data_loader, logger)
+    trainer = trainer_creator(args, model, dataset, data_loader, logger, device)
     if args.train:
         evaluator = trainer_creator(args, model, val_dataset, val_data_loader,
-            logger)
+            logger, device)
         evaluator.train = False
 
     if args.train:
@@ -129,8 +127,7 @@ if __name__ == '__main__':
                 score = dataset.eval(result, "results")
 
 
-    """
     if not args.train:
         with open('results.json', 'w') as f:
             json.dump(result, f)
-    """
+

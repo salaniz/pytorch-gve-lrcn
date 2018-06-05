@@ -59,10 +59,8 @@ def get_args():
     args = parser.parse_args()
 
     arg_vars = vars(args)
-    # TODO: Check if there is a direct way to do this
-    arg_vars["cuda"] = torch.cuda.is_available() and not args.disable_cuda
-    del arg_vars["disable_cuda"]
 
+    # TODO: Check if there is a direct way to do this
     arg_vars["train"] = not args.eval
     arg_vars["eval_ckpt"] = args.eval
     del arg_vars["eval"]
