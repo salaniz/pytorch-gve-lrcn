@@ -37,8 +37,6 @@ def get_args():
                         choices=PretrainedModel.SUPPORTED_MODEL_NAMES)
     parser.add_argument('--layers-to-truncate', type=int, default=1,
                         help="[LRCN] number of final FC layers to be removed from pretrained model")
-    parser.add_argument('--not-factored', action='store_true',
-                        help="[LRCN] model will not factor word and image input to LSTMs")
     parser.add_argument('--sc-ckpt', type=str, default='data/cub/sentence_classifier_ckpt.pth',
                         help="[GVE] path to checkpoint for pretrained sentence classifier")
     parser.add_argument('--weights-ckpt', type=str,
@@ -61,12 +59,9 @@ def get_args():
     args = parser.parse_args()
 
     arg_vars = vars(args)
+    # TODO: Check if there is a direct way to do this
     arg_vars["cuda"] = torch.cuda.is_available() and not args.disable_cuda
     del arg_vars["disable_cuda"]
-
-    # TODO: Check if there is a direct way to do this
-    arg_vars["factored"] = not args.not_factored
-    del arg_vars["not_factored"]
 
     arg_vars["train"] = not args.eval
     arg_vars["eval_ckpt"] = args.eval

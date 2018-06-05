@@ -7,21 +7,14 @@ from .pretrained_models import PretrainedModel
 
 class LRCN(nn.Module):
     def __init__(self, pretrained_model_name, word_embed_size, hidden_size,
-                 vocab_size, layers_to_truncate=1, is_factored=True):
+                 vocab_size, layers_to_truncate=1):
         super().__init__()
         self.vision_model = PretrainedModel(pretrained_model_name,
                 layers_to_truncate=layers_to_truncate)
         self.word_embed = nn.Embedding(vocab_size, word_embed_size, padding_idx=0)
-        self.is_factored = is_factored
 
         lstm1_input_size = word_embed_size
-        lstm2_input_size = hidden_size
-        if not self.is_factored:
-            # Vision features are input to 1st LSTM
-            lstm1_input_size += hidden_size
-        else:
-            # Vision features are input to 2nd LSTM (when is_factored == True)
-            lstm2_input_size += hidden_size
+        lstm2_input_size = 2*hidden_size
 
         self.linear0 = nn.Linear(self.vision_model.output_size, hidden_size)
         self.relu = nn.ReLU()
@@ -50,21 +43,15 @@ class LRCN(nn.Module):
         embeddings = self.word_embed(captions)
         embeddings = self.dropout0(embeddings)
         image_features = image_features.expand(-1, embeddings.size(1), -1)
-        if not self.is_factored:
-            # TODO: fix dropout for non-factored models
-            embeddings = torch.cat((image_features, embeddings), 2)
-            packed = pack_padded_sequence(embeddings, lengths, batch_first=True)
-            hiddens, _ = self.lstm1(packed)
-            hiddens, _ = self.lstm2(hiddens)
-        else:
-            packed = pack_padded_sequence(embeddings, lengths, batch_first=True)
-            hiddens, _ = self.lstm1(packed)
-            unpacked_hiddens, new_lengths = pad_packed_sequence(hiddens, batch_first=True)
-            unpacked_hiddens = torch.cat((image_features, unpacked_hiddens), 2)
-            unpacked_hiddens = self.dropout1(unpacked_hiddens)
-            packed_hiddens = pack_padded_sequence(unpacked_hiddens, lengths,
-                    batch_first=True)
-            hiddens, _ = self.lstm2(packed_hiddens)
+
+        packed = pack_padded_sequence(embeddings, lengths, batch_first=True)
+        hiddens, _ = self.lstm1(packed)
+        unpacked_hiddens, new_lengths = pad_packed_sequence(hiddens, batch_first=True)
+        unpacked_hiddens = torch.cat((image_features, unpacked_hiddens), 2)
+        unpacked_hiddens = self.dropout1(unpacked_hiddens)
+        packed_hiddens = pack_padded_sequence(unpacked_hiddens, lengths,
+                batch_first=True)
+        hiddens, _ = self.lstm2(packed_hiddens)
 
         hiddens = self.dropout2(hiddens[0])
         outputs = self.linear(hiddens)
@@ -94,14 +81,10 @@ class LRCN(nn.Module):
         while not reached_end.all() and i < max_sampling_length:
             lstm1_input = embedded_word
 
-            if not self.is_factored:
-                lstm1_input = torch.cat((image_features, lstm1_input), 2)
-
             # LSTM 1
             lstm1_output, lstm1_states = self.lstm1(lstm1_input, lstm1_states)
 
-            if self.is_factored:
-                lstm1_output = torch.cat((image_features, lstm1_output), 2)
+            lstm1_output = torch.cat((image_features, lstm1_output), 2)
 
             # LSTM 2
             lstm2_output, lstm2_states = self.lstm2(lstm1_output, lstm2_states)

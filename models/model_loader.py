@@ -17,10 +17,9 @@ class ModelLoader:
         vocab_size = len(self.dataset.vocab)
 
         layers_to_truncate = self.args.layers_to_truncate
-        is_factored = self.args.factored
 
         lrcn = LRCN(pretrained_model, embedding_size, hidden_size, vocab_size,
-                layers_to_truncate, is_factored)
+                layers_to_truncate)
 
         return lrcn
 
