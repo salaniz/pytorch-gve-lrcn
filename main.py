@@ -97,9 +97,9 @@ if __name__ == '__main__':
             model.eval()
             result = evaluator.train_epoch()
             if evaluator.REQ_EVAL:
-                score = val_dataset.eval(result, checkpoint_path)
+                score = 0 #val_dataset.eval(result, checkpoint_path)
             else:
-                score = result
+                score = 0 #result
             model.train()
 
             logger.scalar_summary('score', score, trainer.curr_epoch)

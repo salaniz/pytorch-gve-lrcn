@@ -6,14 +6,14 @@ import torch
 import torchvision.transforms as transforms
 
 # Local packages
-from .coco_dataset import CocoDataset
+# from .coco_dataset import CocoDataset
 from .cub_dataset import CubDataset
 from utils.transform import get_transform
 
 class DataPreparation:
     def __init__(self, dataset_name='coco', data_path='./data'):
         if dataset_name == 'coco':
-            self.DatasetClass = CocoDataset
+            self.DatasetClass = CubDataset#CocoDataset
         elif dataset_name == 'cub':
             self.DatasetClass = CubDataset
         self.data_path = os.path.join(data_path, self.DatasetClass.dataset_prefix)

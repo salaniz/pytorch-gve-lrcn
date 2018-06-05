@@ -59,10 +59,10 @@ class GVETrainer:
 
                 loss = self.train_step(image_input, word_inputs, word_targets,
                         lengths, start_word, end_word, labels, labels_onehot)
-                result.append(loss.data[0])
+                result.append(loss.data.item())
 
                 step = self.curr_epoch * self.total_steps + i + 1
-                self.logger.scalar_summary('batch_loss', loss.data[0], step)
+                self.logger.scalar_summary('batch_loss', loss.data.item(), step)
 
             else:
                 generated_captions = self.eval_step(image_input, ids,
@@ -75,8 +75,8 @@ class GVETrainer:
                 print("Epoch [{}/{}], Step [{}/{}]".format(self.curr_epoch,
                     self.num_epochs, i, self.total_steps), end='')
                 if self.train:
-                    print(", Loss: {:.4f}, Perplexity: {:5.4f}".format(loss.data[0],
-                                np.exp(loss.data[0])), end='')
+                    print(", Loss: {:.4f}, Perplexity: {:5.4f}".format(loss.data.item(),
+                                np.exp(loss.data.item())), end='')
                 print()
 
 
@@ -102,7 +102,7 @@ class GVETrainer:
         lengths = lengths.cpu().numpy()
         sort_idx = np.argsort(-lengths)
         lengths = lengths[sort_idx]
-        sort_idx = torch.LongTensor(sort_idx).cuda()
+        sort_idx = torch.LongTensor(sort_idx)#.cuda()
         labels = to_var(labels, self.cuda)
         labels = labels[sort_idx]
         log_ps = log_ps[sort_idx,:]
@@ -129,7 +129,7 @@ class GVETrainer:
         for out_idx in range(len(outputs)):
             sentence = []
             for w in outputs[out_idx]:
-                word = vocab.get_word_from_idx(w.data[0])
+                word = vocab.get_word_from_idx(w.data.item())
                 if word != vocab.end_token:
                     sentence.append(word)
                 else:
