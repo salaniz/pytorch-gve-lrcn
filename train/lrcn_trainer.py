@@ -29,28 +29,36 @@ class LRCNTrainer:
             self.log_step = args.log_step
             self.curr_epoch = 0
 
+        vocab = self.dataset.vocab
+        start_word = to_var(torch.LongTensor([vocab(vocab.start_token)]), self.cuda)
+        self.start_word = start_word.unsqueeze(0)
+        end_word = to_var(torch.LongTensor([vocab(vocab.end_token)]), self.cuda)
+        self.end_word = end_word.unsqueeze(0)
+
+
     def train_epoch(self):
         # Result is list of losses during training
         # and generated captions during evaluation
         result = []
 
-        for i, (images, word_inputs, word_targets, lengths, ids) in enumerate(self.data_loader):
+        for i, (image_input, word_inputs, word_targets, lengths, ids, *excess) in enumerate(self.data_loader):
             # Prepare mini-batch dataset
-            images = to_var(images, self.cuda)
+            image_input = to_var(image_input, self.cuda)
 
             if self.train:
                 word_inputs = to_var(word_inputs, self.cuda)
                 word_targets = to_var(word_targets, self.cuda)
                 word_targets = pack_padded_sequence(word_targets, lengths, batch_first=True)[0]
 
-                loss = self.train_step(images, word_inputs, word_targets, lengths)
+                loss = self.train_step(image_input, word_inputs, word_targets,
+                        lengths, *excess)
                 result.append(loss.data[0])
 
                 step = self.curr_epoch * self.total_steps + i + 1
                 self.logger.scalar_summary('batch_loss', loss.data[0], step)
 
             else:
-                generated_captions = self.eval_step(images, ids)
+                generated_captions = self.eval_step(image_input, ids, *excess)
                 result.extend(generated_captions)
 
             # TODO: Add proper logging
@@ -72,10 +80,11 @@ class LRCNTrainer:
         return result
 
 
-    def train_step(self, images, word_inputs, word_targets, lengths):
+    def train_step(self, image_input, word_inputs, word_targets, lengths,
+            **kwargs):
         # Forward, Backward and Optimize
         self.model.zero_grad()
-        outputs = self.model(images, word_inputs, lengths)
+        outputs = self.model(image_input, word_inputs, lengths)
         loss = self.criterion(outputs, word_targets)
         loss.backward()
         nn.utils.clip_grad_norm(self.params, 10)
@@ -84,16 +93,11 @@ class LRCNTrainer:
         return loss
 
 
-    def eval_step(self, images, ids):
-        vocab = self.dataset.vocab
-        start_word = to_var(torch.LongTensor([vocab(vocab.start_token)]), self.cuda)
-        start_word = start_word.unsqueeze(0)
-        end_word = to_var(torch.LongTensor([vocab(vocab.end_token)]), self.cuda)
-        end_word = end_word.unsqueeze(0)
-
+    def eval_step(self, image_input, ids, **kwargs):
         # TODO: max_sampling_length
+        vocab = self.dataset.vocab
         generated_captions = []
-        outputs = self.model.sample(images, start_word, end_word)
+        outputs = self.model.generate_sentence(image_input, self.start_word, self.end_word, **kwargs)
         for out_idx in range(len(outputs)):
             sentence = []
             for w in outputs[out_idx]:
@@ -105,3 +109,4 @@ class LRCNTrainer:
             generated_captions.append({"image_id": ids[out_idx], "caption": ' '.join(sentence)})
 
         return generated_captions
+

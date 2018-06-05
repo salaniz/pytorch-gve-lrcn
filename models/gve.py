@@ -25,6 +25,7 @@ class GVE(nn.Module):
         self.linear2 = nn.Linear(hidden_size, vocab_size)
         self.init_weights()
 
+        self.num_classes = num_classes
         self.input_size = (input_size, vocab_size)
         self.output_size = vocab_size
         self.dropout_prob=dropout_prob
@@ -38,14 +39,18 @@ class GVE(nn.Module):
         self.linear2.bias.data.fill_(0)
 
 
-    def forward(self, image_features, captions, lengths, labels):
+    def forward(self, image_features, captions, lengths, labels,
+            labels_onehot=None):
+        if labels_onehot is None:
+            labels_onehot = self.convert_onehot(labels)
+
         embeddings = self.word_embed(captions)
         embeddings = F.dropout(embeddings, p=self.dropout_prob, training=self.training)
 
         image_features = self.linear1(image_features)
         image_features = F.relu(image_features)
         image_features = F.dropout(image_features, p=self.dropout_prob, training=self.training)
-        image_features = torch.cat((image_features, labels), 1)
+        image_features = torch.cat((image_features, labels_onehot), 1)
         image_features = image_features.unsqueeze(1)
         image_features = image_features.expand(-1, embeddings.size(1), -1)
 
@@ -91,13 +96,15 @@ class GVE(nn.Module):
         sample = dist.sample()
         return sample, dist.log_prob(sample)
 
-    def generate_sentence(self, image_features, start_word, end_word, labels, states=(None,None),
-            max_sampling_length=50, sample=False):
+    def generate_sentence(self, image_features, start_word, end_word,
+            labels, labels_onehot=None, states=(None,None), max_sampling_length=50, sample=False):
         sampled_ids = []
 
+        if labels_onehot is None:
+            labels_onehot = self.convert_onehot(labels)
         image_features = self.linear1(image_features)
         image_features = F.relu(image_features)
-        image_features = torch.cat((image_features, labels), 1)
+        image_features = torch.cat((image_features, labels_onehot), 1)
         image_features = image_features.unsqueeze(1)
 
         embedded_word = self.word_embed(start_word)
@@ -145,3 +152,9 @@ class GVE(nn.Module):
             log_probabilities = torch.cat(log_probabilities, 1).squeeze()
             return sampled_ids, log_probabilities, lengths
         return sampled_ids
+
+    def convert_onehot(self, labels):
+        labels_onehot = torch.zeros(labels.size(0),
+                self.num_classes)
+        labels_onehot.scatter_(1, labels.unsqueeze(1), 1)
+        return labels_onehot
