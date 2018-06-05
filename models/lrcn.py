@@ -76,7 +76,7 @@ class LRCN(nn.Module):
             del state_dict['vision_model.{}'.format(key)]
         return state_dict
 
-    def sample(self, image_inputs, start_word, end_word, states=(None,None),
+    def generate_sentence(self, image_inputs, start_word, end_word, states=(None,None),
             max_sampling_length=50):
         sampled_ids = []
         image_features = self.vision_model(image_inputs)
