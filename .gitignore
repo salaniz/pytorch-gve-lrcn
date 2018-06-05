@@ -7,4 +7,4 @@ pycocoevalcap/
 # PYTHON
 # Byte-compiled / optimized / DLL files
 __pycache__/
-
+.python-version
