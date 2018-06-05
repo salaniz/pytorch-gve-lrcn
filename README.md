@@ -17,18 +17,23 @@ PyTorch implementation of the following models:
 * tensorflow
 
 ## Installation
-1. To install the Python packages you can run
+1. Clone the repository
+```shell
+git clone https://github.com/salaniz/pytorch-vision-language.git
+cd pytorch-vision-language
+```
+2. To install the Python packages you can run
 ```shell
 pip3 install -r requirements.txt
 ```
-2. To install PyTorch follow the instructions on its website: https://pytorch.org/
+3. To install PyTorch follow the instructions on its website: https://pytorch.org/
 
-3. Clone the pycocoevalcap repository into the project's directory
+4. Clone the pycocoevalcap repository into the project's directory
 ```shell
 git clone https://github.com/salaniz/pycocoevalcap.git
 ```
 
-3. Download scripts are provided for the datasets:
+5. Download scripts are provided for the datasets:
 * `coco-data-setup-linux.sh` downloads COCO 2014: http://cocodataset.org/ [3]
 * `cub-data-setup-linux.sh` downloads preprocessed features of CUBS-200-2011: http://www.vision.caltech.edu/visipedia/CUB-200-2011.html [4]
 
@@ -46,7 +51,7 @@ python main.py --model sc --dataset cub
 * Copy the saved model to the default path (or change the path to your model file) and then run the GVE training:
 ```
 cp ./checkpoints/sc-cub-D<date>-T<time>-G<GPUid>/best-ckpt.pth ./data/cub/sentence_classifier_ckpt.pth
-python main.py --model gve --dataset cub --sc_ckpt ./data/cub/sentence_classifier_ckpt.pth
+python main.py --model gve --dataset cub --sc-ckpt ./data/cub/sentence_classifier_ckpt.pth
 ```
 
 
@@ -129,7 +134,7 @@ optional arguments:
 ```
 
 ## References
-1. Donahue J., Hendricks A.L., Guadarrama S., Rohrbach M., Venugopalan S., Saenko K., Darrell T., "Long-term Recurrent Convolutional Networks for Visual Recognition and Description", Conference on Computer Vision and Pattern Recognition (CVPR), 2015
-2. Hendricks A.L., Akata Z., Rohrbach M., Donahue J., Schiele B., Darrell T., "Generating Visual Explanations", European Conference on Computer Vision (ECCV), 2016
+1. Donahue J., Hendricks L.A., Guadarrama S., Rohrbach M., Venugopalan S., Saenko K., Darrell T., "Long-term Recurrent Convolutional Networks for Visual Recognition and Description", Conference on Computer Vision and Pattern Recognition (CVPR), 2015
+2. Hendricks L.A., Akata Z., Rohrbach M., Donahue J., Schiele B., Darrell T., "Generating Visual Explanations", European Conference on Computer Vision (ECCV), 2016
 3. Lin T.Y., Maire M., Belongie S. et al., "Microsoft COCO: Common Objects in Context", European Conference in Computer Vision (ECCV), 2014.
 4. Wah C., Branson S., Welinder P., Perona P., Belongie S., "The Caltech-UCSD Birds-200-2011 Dataset." Computation & Neural Systems Technical Report, CNS-TR-2011-001.
