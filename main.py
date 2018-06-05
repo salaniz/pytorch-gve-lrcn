@@ -37,7 +37,7 @@ if __name__ == '__main__':
 
     # Data preparation
     print("Preparing Data ...")
-    split = get_split_str(args.train, bool(args.eval_ckpt))
+    split = get_split_str(args.train, bool(args.eval_ckpt), args.dataset)
     data_prep = DataPreparation(args.dataset, args.data_path)
     dataset, data_loader = data_prep.get_dataset_and_loader(split, args.pretrained_model,
             batch_size=args.batch_size, num_workers=args.num_workers)
@@ -57,7 +57,10 @@ if __name__ == '__main__':
     # TODO: Remove and handle with checkpoints
     if not args.train:
         print("Loading Model Weights ...")
-        model.load_state_dict(torch.load(args.eval_ckpt))
+        evaluation_state_dict = torch.load(args.eval_ckpt)
+        model_dict = model.state_dict(full_dict=True)
+        model_dict.update(evaluation_state_dict)
+        model.load_state_dict(model_dict)
         model.eval()
 
     if args.train:
@@ -127,7 +130,7 @@ if __name__ == '__main__':
                 score = dataset.eval(result, "results")
 
 
-    if not args.train:
+    if not args.train and args.model == 'sc':
         with open('results.json', 'w') as f:
             json.dump(result, f)
 

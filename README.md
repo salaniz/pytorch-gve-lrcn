@@ -22,11 +22,11 @@ PyTorch implementation of the following models:
 git clone https://github.com/salaniz/pytorch-vision-language.git
 cd pytorch-vision-language
 ```
-2. To install the Python packages you can run
+2. To install the Python packages, you can run
 ```shell
 pip3 install -r requirements.txt
 ```
-3. To install PyTorch follow the instructions on its website: https://pytorch.org/
+3. To install PyTorch, follow the instructions on its website: https://pytorch.org/
 
 4. Clone the pycocoevalcap repository into the project's directory
 ```shell
@@ -53,6 +53,14 @@ python main.py --model sc --dataset cub
 cp ./checkpoints/sc-cub-D<date>-T<time>-G<GPUid>/best-ckpt.pth ./data/cub/sentence_classifier_ckpt.pth
 python main.py --model gve --dataset cub --sc-ckpt ./data/cub/sentence_classifier_ckpt.pth
 ```
+
+3. Evaluation
+* By default, model checkpoints and validation results are saved in the checkpoint directory using the following naming convention: `<model>-<dataset>-D<date>-T<time>-G<GPUid>`
+* To make a single evaluation on the test set, you can run
+```
+python main.py --model gve --dataset cub --eval ./checkpoints/gve-cub-D<date>-T<time>-G<GPUid>/best-ckpt.pth
+```
+Note: Since COCO does not come with test set annotations, this script evaluates on the validation set when run on the COCO dataset
 
 
 ### Default parameters

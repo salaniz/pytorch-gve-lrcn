@@ -76,9 +76,9 @@ class LRCN(nn.Module):
         outputs = self.linear2(hiddens)
         return outputs
 
-    def state_dict(self):
+    def state_dict(self, full_dict=False):
         state_dict = super().state_dict()
-        if self.has_vision_model:
+        if self.has_vision_model and not full_dict:
             for key in self.vision_model.state_dict().keys():
                 del state_dict['vision_model.{}'.format(key)]
         return state_dict
