@@ -37,7 +37,7 @@ class SCTrainer:
         for i, (images, word_inputs, word_targets, lengths, ids, labels) in enumerate(self.data_loader):
             # Prepare mini-batch dataset
             if self.train:
-                word_targets = word_targetst
+                word_targets = word_targets.to(self.device)
                 labels = labels.to(self.device)
 
                 loss = self.train_step(word_targets, labels, lengths)
