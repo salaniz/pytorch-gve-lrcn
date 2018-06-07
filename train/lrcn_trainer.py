@@ -94,6 +94,9 @@ class LRCNTrainer:
         # TODO: max_sampling_length
         generated_captions = []
         outputs = self.model.sample(images, start_word, end_word)
+        if outputs.dim() == 1:
+            outputs = outputs.unsqueeze(0)
+        print(outputs)
         for out_idx in range(len(outputs)):
             sentence = []
             for w in outputs[out_idx]:
