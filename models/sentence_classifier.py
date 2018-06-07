@@ -29,8 +29,8 @@ class SentenceClassifier(nn.Module):
         self.linear.weight.data.uniform_(-0.1, 0.1)
         self.linear.bias.data.fill_(0)
 
-    def state_dict(self, full_dict=False):
-        return super().state_dict()
+    def state_dict(self, *args, full_dict=False, **kwargs):
+        return super().state_dict(*args, **kwargs)
 
     def forward(self, captions, lengths):
         embeddings = self.word_embed(captions)
