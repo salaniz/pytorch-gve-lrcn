@@ -1,4 +1,4 @@
-# PyTorch Models for Vision and Language
+# PyTorch Models for GVE and LRCN
 PyTorch implementation of the following models:
 * Long-term Recurrent Convolutional Networks (LRCN) [1]
 * Generating Visual Explanations (GVE) [2]
