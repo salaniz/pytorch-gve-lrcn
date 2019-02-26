@@ -19,8 +19,8 @@ PyTorch implementation of the following models:
 ## Installation
 1. Clone the repository
 ```shell
-git clone https://github.com/salaniz/pytorch-vision-language.git
-cd pytorch-vision-language
+git clone https://github.com/salaniz/pytorch-gve-lrcn.git
+cd pytorch-gve-lrcn
 ```
 2. To install the Python packages, you can run
 ```shell
