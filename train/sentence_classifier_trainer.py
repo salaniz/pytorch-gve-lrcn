@@ -69,7 +69,7 @@ class SCTrainer:
             self.logger.scalar_summary('epoch_loss', np.mean(result), self.curr_epoch)
         else:
             result = np.sum(result, axis=0)
-            result = result[1] / result[0]
+            result = float(result[1] / result[0])
             print("Evaluation Accuracy: {}".format(result))
 
 
