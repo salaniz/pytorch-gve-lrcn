@@ -91,4 +91,4 @@ class SCTrainer:
         outputs = self.model(word_targets, lengths)
         _, predicted = torch.max(outputs.data, 1)
 
-        return [class_labels.size(0), (predicted == class_labels).sum()]
+        return [class_labels.size(0), (predicted == class_labels).sum().item()]
