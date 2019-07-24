@@ -41,7 +41,7 @@ def get_args():
                         help="[GVE] path to checkpoint for pretrained sentence classifier")
     parser.add_argument('--weights-ckpt', type=str,
                         help="[GVE] path to checkpoint for pretrained weights")
-    parser.add_argument('--loss-lambda', type=float, default=0.01,
+    parser.add_argument('--loss-lambda', type=float, default=0.2,
                         help="[GVE] weight factor for reinforce loss")
 
     parser.add_argument('--embedding-size', type=int , default=1000,

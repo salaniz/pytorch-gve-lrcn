@@ -3,37 +3,24 @@ PyTorch implementation of the following models:
 * Long-term Recurrent Convolutional Networks (LRCN) [1]
 * Generating Visual Explanations (GVE) [2]
 
-## Requirements
-* Python 3
-* PyTorch
-* pycocoevalcap (https://github.com/salaniz/pycocoevalcap)
-
-### Python Packages:
-* Cython
-* matplotlib
-* numpy
-* pycocotools
-* scipy
-* tensorflow
-
 ## Installation
+This implementation uses Python 3, PyTorch and pycocoevalcap (https://github.com/salaniz/pycocoevalcap).  
+All dependencies can be installed into a conda environment with the provided environment.yml file.
+
 1. Clone the repository
 ```shell
 git clone https://github.com/salaniz/pytorch-gve-lrcn.git
 cd pytorch-gve-lrcn
 ```
-2. To install the Python packages, you can run
+2. Create conda environment
 ```shell
-pip3 install -r requirements.txt
+conda env create -f environment.yml
 ```
-3. To install PyTorch, follow the instructions on its website: https://pytorch.org/
-
-4. Clone the pycocoevalcap repository into the project's directory
+3. Activate environment
 ```shell
-git clone https://github.com/salaniz/pycocoevalcap.git
+conda activate gve-lrcn
 ```
-
-5. Download scripts are provided for the datasets:
+4. Download scripts are provided for the datasets:
 * `coco-data-setup-linux.sh` downloads COCO 2014: http://cocodataset.org/ [3]
 * `cub-data-setup-linux.sh` downloads preprocessed features of CUBS-200-2011: http://www.vision.caltech.edu/visipedia/CUB-200-2011.html [4]
 
@@ -78,7 +65,7 @@ pretrained_model              vgg16
 layers_to_truncate            1
 sc_ckpt                       ./data/cub/sentence_classifier_ckpt.pth
 weights_ckpt                  None
-loss_lambda                   0.01
+loss_lambda                   0.2
 embedding_size                1000
 hidden_size                   1000
 num_epochs                    50
