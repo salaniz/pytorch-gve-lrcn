@@ -1,22 +1,25 @@
 #!/bin/bash
 
-#This will download all data you need to run "Generating Visual Explanation" code.  You will need the coco evaluation toolbox as well.
+# This will download all data you need to run "Generating Visual Explanation" code.  You will need the coco evaluation toolbox as well.
+# The data is located on google drive at: https://drive.google.com/drive/folders/1nU9ATTLHAM6_jz-K6hoVlDzNrFcOXtyH
 
-data_files=( "CUB_feature_dict.p" "CUB_label_dict.p" "bilinear_preds.p" "cub_0917_5cap.tsv" "train_noCub.txt" "val.txt" "test.txt" "description_sentence_features.p" "CUB_vocab_noUNK.txt")
-cider_scores=( "cider_score_dict_definition.p" "cider_score_dict_description.p" "cider_score_dict_explanation-dis.p" "cider_score_dict_explanation-label.p" "cider_score_dict_explanation.p" )
+gdrive_file_ids=( "1RHBLIo7sp8nhKjX0NQaGLaA-0ChYIunR" "1O5hEl7BYP0o1sYJONkPFbp9T-aVrNQZ0" )
+gdrive_file_names=( "data.zip" "cider_scores.zip" )
 
 echo "Downloading data..."
 
 mkdir -p data/cub
 cd data/cub
-for i in "${data_files[@]}"
-do 
-  echo "Downloading: " $i
-  if [ ! -f $i ];
-  then
-    wget https://people.eecs.berkeley.edu/~lisa_anne/generating_visual_explanations/data/$i
-  fi
+
+for i in "${!gdrive_file_ids[@]}"
+do
+    gdown ${gdrive_file_ids[i]} -O ${gdrive_file_names[i]}
+    unzip ${gdrive_file_names[i]}
+    rm ${gdrive_file_names[i]}
 done
+
+mv data/* .
+rm -r data/
 cd ../..
 
 # Unify naming
@@ -25,18 +28,5 @@ mv data/cub/train_noCub.txt data/cub/train.txt
 echo "Preprocessing text data..."
 python utils/cub_preprocess_captions.py --description_type bird \
                                     --splits data/cub/train.txt,data/cub/val.txt,data/cub/test.txt
-
-echo "Downloading cider scores..."
-mkdir -p data/cub/cider_scores 
-cd data/cub/cider_scores
-for i in "${cider_scores[@]}"
-do 
-  echo "Downloading: " $i
-  if [ ! -f $i ];
-  then
-    wget https://people.eecs.berkeley.edu/~lisa_anne/generating_visual_explanations/cider_scores/$i
-  fi
-done
-cd ../../..
 
 echo "Done downloading and pre-processing data."
