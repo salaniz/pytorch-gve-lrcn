@@ -34,8 +34,8 @@ class GVETrainer(LRCNTrainer):
         sort_idx = np.argsort(-lengths)
         lengths = lengths[sort_idx]
         sort_idx = torch.tensor(sort_idx, device=self.device, dtype=torch.long)
-        labels = labels[sort_idx]
         labels = labels.to(self.device)
+        labels = labels[sort_idx]
         log_ps = log_ps[sort_idx,:]
         sample_ids = sample_ids[sort_idx,:]
 

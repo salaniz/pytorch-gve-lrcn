@@ -1,20 +1,23 @@
 name: gve-lrcn
 channels:
   - pytorch
+  - nvidia
+  - conda-forge
   - defaults
 dependencies:
-  - cudatoolkit=10.0.130
-  - cython=0.29.12
-  - future=0.17.1
-  - matplotlib=3.1.0
-  - numpy=1.16.4
-  - openjdk=8.0.152
-  - pillow=6.1.0
-  - pip=19.1.1
-  - python=3.7.3
-  - pytorch=1.1.0
-  - tensorboard=1.14.0
-  - torchvision=0.3.0
+  - cython=0.29.32
+  - future=0.18.2
+  - gdown=4.5.4
+  - matplotlib=3.6.2
+  - numpy=1.23.5
+  - openjdk=11.0.15
+  - pillow=9.2.0
+  - pip=22.3.1
+  - python=3.10.8
+  - pytorch=1.13.0
+  - pytorch-cuda=11.6
+  - tensorboard=2.11.0
+  - torchvision=0.14.0
   - pip:
-    - git+https://github.com/salaniz/pycocoevalcap
-    - pycocotools==2.0.0
+    - pycocoevalcap==1.2
+    - pycocotools==2.0.6

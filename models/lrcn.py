@@ -109,7 +109,7 @@ class LRCN(nn.Module):
         lstm1_states, lstm2_states = states
 
         end_word = end_word.squeeze().expand(image_features.size(0))
-        reached_end = torch.zeros_like(end_word.data).byte()
+        reached_end = torch.zeros_like(end_word.data).bool()
 
         if sample:
             log_probabilities = []

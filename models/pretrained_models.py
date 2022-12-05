@@ -44,7 +44,8 @@ class PretrainedModel(nn.Module):
         if layers_to_truncate > max_trunc:
             raise ValueError(self.ERR_TRUNC_MSG.format(model_name, max_trunc, max_trunc))
 
-        model = getattr(torchvision.models, model_name)(pretrained=True)
+        model_weights = torchvision.models.get_model_weights(model_name).DEFAULT
+        model = torchvision.models.get_model(model_name, weights=model_weights)
 
         if layers_to_truncate < 1:
             # Do not truncate
